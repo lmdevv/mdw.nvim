@@ -95,7 +95,22 @@ add("setup is idempotent", function()
   local second = #vim.api.nvim_get_autocmds({ group = "mdw" })
   eq(first, second, "autocmd count stays stable")
   truthy(first > 0, "autocmds exist")
-  truthy(vim.api.nvim_get_commands({ builtin = false }).Mdw ~= nil, "Mdw command exists")
+  truthy(vim.api.nvim_get_commands({ builtin = false }).Mdw ~= nil, "command is registered")
+  truthy(mdw.typed_mdw("mdw"), "plain :mdw is recognized")
+  truthy(mdw.typed_mdw("1,2mdw"), "a line range is recognized")
+  truthy(mdw.typed_mdw("'<,'>mdw"), "a visual range is recognized")
+  eq(mdw.typed_mdw("echo mdw"), false, "mdw inside another command is left alone")
+  local saved_notify = vim.notify
+  local shown = {}
+  vim.notify = function(msg)
+    shown[#shown + 1] = msg
+  end
+  local typed = pcall(function()
+    vim.fn.feedkeys(":mdw\r", "tx")
+  end)
+  vim.notify = saved_notify
+  truthy(typed, ":mdw runs")
+  truthy(table.concat(shown, "\n"):find(":mdw health", 1, true) ~= nil, ":mdw prints the lowercase usage")
 end)
 
 add("scanner reads metadata and ignores code, links, and labels", function()
@@ -421,7 +436,7 @@ add("commands, health, choose, and picker fallback", function()
     end,
   }
   vim.cmd("Mdw search plan")
-  eq(started.source.name, "Mdw notes", "mini.pick source name")
+  eq(started.source.name, "mdw notes", "mini.pick source name")
   eq(started.source.items[1].reason, "title", "mini.pick item keeps the match reason")
   local inds = started.source.match(nil, nil, {})
   same(inds, { 1 }, "empty picker query keeps the current order")

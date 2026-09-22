@@ -39,7 +39,7 @@ function M.open_result(root, result)
         end,
       }
     end
-    ui.choose("Mdw links", items)
+    ui.choose("mdw links", items)
     return true
   end
   if result.kind == "missing-location" then

@@ -33,24 +33,24 @@ local COMMANDS = {
 
 local USAGE = table.concat({
   "Usage:",
-  "  :Mdw health",
-  "  :Mdw search [query]",
-  "  :Mdw index",
-  "  :Mdw follow",
-  "  :Mdw sidebar",
-  "  :Mdw outline | backlinks | outgoing",
-  "  :Mdw qf [outline|backlinks|outgoing]",
-  "  :Mdw rename {path}",
-  "  :Mdw new {path}",
-  "  :Mdw daily [today|yesterday|tomorrow|prev|next|YYYY-MM-DD]",
-  "  :Mdw property {key} {value}",
-  "  :Mdw aliases {names}",
-  "  :Mdw tags {names}",
-  "  :Mdw obsidian",
-  "  :Mdw format",
-  "  :Mdw lint",
-  "  :Mdw image",
-  "  :Mdw list continue | nest | unnest | check",
+  "  :mdw health",
+  "  :mdw search [query]",
+  "  :mdw index",
+  "  :mdw follow",
+  "  :mdw sidebar",
+  "  :mdw outline | backlinks | outgoing",
+  "  :mdw qf [outline|backlinks|outgoing]",
+  "  :mdw rename {path}",
+  "  :mdw new {path}",
+  "  :mdw daily [today|yesterday|tomorrow|prev|next|YYYY-MM-DD]",
+  "  :mdw property {key} {value}",
+  "  :mdw aliases {names}",
+  "  :mdw tags {names}",
+  "  :mdw obsidian",
+  "  :mdw format",
+  "  :mdw lint",
+  "  :mdw image",
+  "  :mdw list continue | nest | unnest | check",
 }, "\n")
 
 local function map_follow(bufnr)
@@ -108,7 +108,7 @@ local LIST_ACTIONS = { "continue", "nest", "unnest", "check" }
 
 local function complete(arglead, cmdline)
   local before = cmdline:sub(1, #cmdline - #arglead)
-  if before:match("^%s*Mdw%s+list%s+$") then
+  if before:match("^%s*[Mm]dw%s+list%s+$") then
     local matches = {}
     for _, name in ipairs(LIST_ACTIONS) do
       if vim.startswith(name, arglead) then
@@ -117,7 +117,7 @@ local function complete(arglead, cmdline)
     end
     return matches
   end
-  if before:match("^%s*Mdw%s+%S") then
+  if before:match("^%s*[Mm]dw%s+%S") then
     return {}
   end
   local matches = {}
@@ -298,6 +298,20 @@ local function dispatch(args, line1, line2)
   end
 end
 
+function M.typed_mdw(line)
+  return line:match("^%s*mdw$") ~= nil
+    or line:match("^%s*'<,'>%s*mdw$") ~= nil
+    or line:match("^%s*%%%s*mdw$") ~= nil
+    or line:match("^%s*[%d%.%$]+,?[%d%.%$]*%s*mdw$") ~= nil
+end
+
+function M.command_abbrev()
+  if vim.fn.getcmdtype() == ":" and M.typed_mdw(vim.fn.getcmdline()) then
+    return "Mdw"
+  end
+  return "mdw"
+end
+
 function M.setup(opts)
   if not compat.supported() then
     error("mdw requires Neovim 0.11 or newer (this is " .. compat.string() .. ")")
@@ -315,6 +329,8 @@ function M.setup(opts)
     callback = on_write,
   })
   pcall(vim.api.nvim_del_user_command, "Mdw")
+  pcall(vim.cmd, "cunabbrev mdw")
+  vim.cmd("cnoreabbrev <expr> mdw v:lua.require('mdw').command_abbrev()")
   vim.api.nvim_create_user_command("Mdw", function(cmd)
     dispatch(vim.trim(cmd.args or ""), cmd.line1, cmd.line2)
   end, {

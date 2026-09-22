@@ -26,10 +26,10 @@ mdw does not set leader mappings.
 ==============================================================================
 COMMANDS                                                            *mdw-commands*
 
-:Mdw                  Show command usage.
-:Mdw health           Run |:checkhealth| for mdw.
-:Mdw search [query]   Search notes in the current workspace.
-:Mdw index            Rebuild the current workspace index.
+:mdw                  Show command usage.
+:mdw health           Run |:checkhealth| for mdw.
+:mdw search [query]   Search notes in the current workspace.
+:mdw index            Rebuild the current workspace index.
 
 ==============================================================================
 WORKSPACE                                                          *mdw-workspace*
@@ -64,14 +64,14 @@ for the keys above. Other keys are ignored when their lines fit that subset.
 Unclosed frontmatter and unsupported lines skip the file.
 
 Open modified buffers are indexed from buffer text, including unsaved edits.
-Unmodified files are indexed from disk. `:Mdw index` rebuilds the workspace.
+Unmodified files are indexed from disk. `:mdw index` rebuilds the workspace.
 Entering an unmodified buffer refreshes that note when the file on disk has
 changed.
 
 ==============================================================================
 SEARCH                                                                *mdw-search*
 
-`:Mdw search` uses |mini.pick| when that plugin is installed, and
+`:mdw search` uses |mini.pick| when that plugin is installed, and
 |vim.ui.select()| otherwise. The query may contain text and `#tag` filters.
 Every tag filter must match exactly, ignoring case. `#parent` does not match
 the tag `parent/child`.
@@ -110,34 +110,34 @@ chooser. A missing note asks before creating a file. A missing heading or
 block opens the note and reports that the location is missing. `gd` away from
 a link uses the attached LSP.
 
-`:Mdw sidebar` opens the outline. In that window, `o` shows the outline, `b`
+`:mdw sidebar` opens the outline. In that window, `o` shows the outline, `b`
 shows backlinks, `l` shows outgoing links, Enter jumps, and `q` closes it.
-`:Mdw outline`, `:Mdw backlinks`, and `:Mdw outgoing` fill the quickfix list.
-`:Mdw qf {view}` does the same. `:Mdw trouble {view}` uses Trouble when it is
+`:mdw outline`, `:mdw backlinks`, and `:mdw outgoing` fill the quickfix list.
+`:mdw qf {view}` does the same. `:mdw trouble {view}` uses Trouble when it is
 installed, and the quickfix list otherwise.
 
-`:Mdw rename {path}` previews references, then updates wikilinks and Markdown
+`:mdw rename {path}` previews references, then updates wikilinks and Markdown
 links and moves the file. The destination must be free. A note with unsaved
 changes is left untouched.
 
 ==============================================================================
 CREATE                                                            *mdw-create*
 
-`:Mdw new {path}` asks, then writes a note from `create.default_template`.
-`:Mdw daily` opens today's note, creating it only when it is missing.
-`:Mdw daily yesterday`, `tomorrow`, `prev`, `next`, or `YYYY-MM-DD` select
+`:mdw new {path}` asks, then writes a note from `create.default_template`.
+`:mdw daily` opens today's note, creating it only when it is missing.
+`:mdw daily yesterday`, `tomorrow`, `prev`, `next`, or `YYYY-MM-DD` select
 another day. `prev` and `next` open an existing daily note and do not create
 one. The default name is `YYYY-MM-DD.md`. `daily.folder` and `daily.template`
 override that. Set `obsidian.import_daily` to read `.obsidian/daily-notes.json`
 when mdw's own daily options are unset. An imported format other than
 `YYYY-MM-DD` is reported and not guessed.
 
-`:Mdw property {key} {value}`, `:Mdw aliases {names}`, and `:Mdw tags {names}`
+`:mdw property {key} {value}`, `:mdw aliases {names}`, and `:mdw tags {names}`
 edit frontmatter in place. Comments, unknown keys, and the body stay put.
 A multiline YAML value is left unchanged and reported.
 
 `create.backend` is `local` by default. `obsidian` runs
-`obsidian vault={workspace} create path={file}` without a shell. `:Mdw obsidian`
+`obsidian vault={workspace} create path={file}` without a shell. `:mdw obsidian`
 opens the current note in the app. Local commands keep working when the CLI
 is absent.
 
@@ -156,13 +156,13 @@ markdown-oxide.
 ==============================================================================
 EDITING                                                            *mdw-editing*
 
-:Mdw format              Format the buffer with rumdl
-:Mdw lint                Show rumdl diagnostics
-:Mdw image               Paste a clipboard image
-:Mdw list continue       Continue the list item
-:Mdw list nest           Indent the item one level
-:Mdw list unnest         Outdent the item one level
-:Mdw list check          Toggle the checkbox
+:mdw format              Format the buffer with rumdl
+:mdw lint                Show rumdl diagnostics
+:mdw image               Paste a clipboard image
+:mdw list continue       Continue the list item
+:mdw list nest           Indent the item one level
+:mdw list unnest         Outdent the item one level
+:mdw list check          Toggle the checkbox
 
 Format on save is off by default. A failed format leaves the buffer unchanged.
 Images are written beside the note in `assets/` and do not replace an
@@ -185,7 +185,7 @@ level. The default is 2. A tab-indented item nests by one tab.
 
 `render.enabled` configures `render-markdown.nvim` once when it is installed.
 `lsp.enabled` attaches `markdown-oxide`. `lsp.rename` gives rename to that
-server, and `:Mdw rename` then leaves the files alone.
+server, and `:mdw rename` then leaves the files alone.
 
 Browser preview is not in this release. See the later-work note in PRD.md.
 

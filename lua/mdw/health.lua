@@ -75,7 +75,7 @@ function M.check()
   if report.mini_pick then
     vim.health.ok("mini.pick is available")
   else
-    vim.health.info(":Mdw search uses vim.ui.select because mini.pick is not installed")
+    vim.health.info(":mdw search uses vim.ui.select because mini.pick is not installed")
   end
   if report.enrich and report.enrich_wrapped then
     vim.health.ok("file-search enrichment is enabled")
@@ -94,7 +94,7 @@ function M.check()
   if report.rumdl then
     vim.health.ok("rumdl is available")
   else
-    vim.health.info("rumdl was not found; :Mdw format and :Mdw lint are unavailable")
+    vim.health.info("rumdl was not found; :mdw format and :mdw lint are unavailable")
   end
   if report.format_on_save then
     vim.health.info("format on save is on")

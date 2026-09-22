@@ -27,10 +27,10 @@ Install `mini.pick` before enabling `search.enrich_files` if you want that picke
 
 | Command | Action |
 | --- | --- |
-| `:Mdw` | Show usage |
-| `:Mdw health` | Check version, workspace, index, and integrations |
-| `:Mdw search [query]` | Search notes in the current workspace |
-| `:Mdw index` | Rebuild the workspace index |
+| `:mdw` | Show usage |
+| `:mdw health` | Check version, workspace, index, and integrations |
+| `:mdw search [query]` | Search notes in the current workspace |
+| `:mdw index` | Rebuild the workspace index |
 
 `:checkhealth mdw` reports the same health information.
 
@@ -50,11 +50,11 @@ Indexing does not write files. A malformed note is skipped and reported; other n
 
 The same scan is used for every supported extension. A `#` inside JSX can become a tag. Supported frontmatter is a YAML subset: scalars, flow lists, and block lists. Unknown keys are ignored when their lines fit that subset. Multiline scalars and unclosed frontmatter skip the file.
 
-Modified buffers are read from editor text, so unsaved edits are searchable. Other files are read from disk. `:Mdw index` rebuilds the workspace. Opening an unmodified buffer picks up an external edit to that file.
+Modified buffers are read from editor text, so unsaved edits are searchable. Other files are read from disk. `:mdw index` rebuilds the workspace. Opening an unmodified buffer picks up an external edit to that file.
 
 ## Search
 
-`:Mdw search` opens `mini.pick` when it is installed and `vim.ui.select` otherwise.
+`:mdw search` opens `mini.pick` when it is installed and `vim.ui.select` otherwise.
 
 A query is text plus optional `#tag` filters. Every filter must match the whole tag, ignoring case, so `#parent` does not match `parent/child`. Every text token must match a substring of the path, filename, title, aliases, or tags. Text is case-insensitive until the query contains an uppercase letter.
 
@@ -75,23 +75,23 @@ With `search.enrich_files = true`, `MiniPick.builtin.files()` matches the same m
 
 `gd` follows the Markdown link or wikilink under the cursor. One match opens that note, at the heading or block when the link names one. Several matches open a chooser. A missing note is created only after confirmation. A missing heading opens the existing note and says the location is missing. Off a link, `gd` falls through to an attached LSP.
 
-`:Mdw sidebar` shows the outline for the note you came from. `o`, `b`, and `l` switch among outline, backlinks, and outgoing links. Enter jumps to the entry. `:Mdw backlinks`, `:Mdw outgoing`, and `:Mdw outline` put the same results in the quickfix list. `:Mdw trouble backlinks` uses Trouble when it is installed.
+`:mdw sidebar` shows the outline for the note you came from. `o`, `b`, and `l` switch among outline, backlinks, and outgoing links. Enter jumps to the entry. `:mdw backlinks`, `:mdw outgoing`, and `:mdw outline` put the same results in the quickfix list. `:mdw trouble backlinks` uses Trouble when it is installed.
 
-`:Mdw rename new/path.md` shows the references it would rewrite, then updates them and moves the file. It stops when the destination exists or a buffer has unsaved changes.
+`:mdw rename new/path.md` shows the references it would rewrite, then updates them and moves the file. It stops when the destination exists or a buffer has unsaved changes.
 
 ## Notes and daily notes
 
-`:Mdw new path/note.md` confirms the path and creates it from `create.default_template`. `:Mdw daily` opens today's `YYYY-MM-DD` note, or creates it when that file is missing. A second call opens the same file and does not apply the template again. `:Mdw daily prev` and `:Mdw daily next` move among daily notes that already exist.
+`:mdw new path/note.md` confirms the path and creates it from `create.default_template`. `:mdw daily` opens today's `YYYY-MM-DD` note, or creates it when that file is missing. A second call opens the same file and does not apply the template again. `:mdw daily prev` and `:mdw daily next` move among daily notes that already exist.
 
-`:Mdw tags work home`, `:Mdw aliases yearly plan`, and `:Mdw property title Budget` change one frontmatter field and leave the rest of the file alone.
+`:mdw tags work home`, `:mdw aliases yearly plan`, and `:mdw property title Budget` change one frontmatter field and leave the rest of the file alone.
 
-Set `create.backend` to `obsidian` to create through the official CLI. The command is `obsidian vault=<workspace> create path=<file>`, passed as arguments. `:Mdw obsidian` opens the current note in the app.
+Set `create.backend` to `obsidian` to create through the official CLI. The command is `obsidian vault=<workspace> create path=<file>`, passed as arguments. `:mdw obsidian` opens the current note in the app.
 
 ## Editing
 
-`:Mdw format` sends the buffer to `rumdl` and replaces it only when that command succeeds. The buffer is left unchanged if `rumdl` fails or the text changed while it was running. Formatting on save is off until `format.format_on_save` is true. `:Mdw lint` publishes `rumdl` diagnostics. Set `format.lint` to false when another tool already owns those diagnostics.
+`:mdw format` sends the buffer to `rumdl` and replaces it only when that command succeeds. The buffer is left unchanged if `rumdl` fails or the text changed while it was running. Formatting on save is off until `format.format_on_save` is true. `:mdw lint` publishes `rumdl` diagnostics. Set `format.lint` to false when another tool already owns those diagnostics.
 
-`:Mdw list continue` opens the next item. On an empty item it unnests one level, and a top-level empty item becomes a blank line. A checkbox continues unchecked. A numbered list renumbers the items that follow. `:Mdw list nest` and `:Mdw list unnest` change the indent of the current item or the selected items and keep the marker (`-`, `*`, `+`, or the number). `:Mdw list check` toggles a checkbox, or adds an empty one on a list item that does not have one. Lines inside a fenced code block stay as they are. The plugin does not bind keys for these. Off a list item, a mapped `>>` or `<<` still indents the line, and a mapped `o` or Enter still inserts a normal line.
+`:mdw list continue` opens the next item. On an empty item it unnests one level, and a top-level empty item becomes a blank line. A checkbox continues unchecked. A numbered list renumbers the items that follow. `:mdw list nest` and `:mdw list unnest` change the indent of the current item or the selected items and keep the marker (`-`, `*`, `+`, or the number). `:mdw list check` toggles a checkbox, or adds an empty one on a list item that does not have one. Lines inside a fenced code block stay as they are. The plugin does not bind keys for these. Off a list item, a mapped `>>` or `<<` still indents the line, and a mapped `o` or Enter still inserts a normal line.
 
 ```lua
 require("mdw").setup({
@@ -107,9 +107,9 @@ require("mdw").setup({
 })
 ```
 
-`:Mdw image` saves a clipboard PNG under `assets/` next to the note and inserts a Markdown image. An existing file is not overwritten.
+`:mdw image` saves a clipboard PNG under `assets/` next to the note and inserts a Markdown image. An existing file is not overwritten.
 
-`render.enabled` turns on `render-markdown.nvim` once, when that plugin is installed. `lsp.enabled` attaches `markdown-oxide`. Set `lsp.rename` to keep rename on the language server so `:Mdw rename` does not also rewrite links.
+`render.enabled` turns on `render-markdown.nvim` once, when that plugin is installed. `lsp.enabled` attaches `markdown-oxide`. Set `lsp.rename` to keep rename on the language server so `:mdw rename` does not also rewrite links.
 
 A browser preview is not part of this release. That is later work, described in [PRD.md](PRD.md).
 

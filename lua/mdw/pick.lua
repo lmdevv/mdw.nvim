@@ -169,7 +169,7 @@ function M.open(results)
       return mini.start({
         source = {
           items = results,
-          name = "Mdw notes",
+          name = "mdw notes",
           choose = M.choose,
           match = function(_, _, query)
             local prompt = vim.trim(plain_prompt(table.concat(query or {})))
@@ -204,7 +204,7 @@ function M.open(results)
     end
   end
   vim.ui.select(results, {
-    prompt = "Mdw notes",
+    prompt = "mdw notes",
     format_item = function(item)
       return item.text
     end,

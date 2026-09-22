@@ -191,29 +191,29 @@
 
         In the sidebar: o outline, b backlinks, l outgoing, Enter jump, q close.
 
-        :Mdw search [query]
-        :Mdw index
-        :Mdw health
-        :Mdw follow
-        :Mdw sidebar
-        :Mdw backlinks
-        :Mdw outgoing
-        :Mdw outline
-        :Mdw qf backlinks
-        :Mdw rename {path}
-        :Mdw new {path}
-        :Mdw daily [today|yesterday|tomorrow|prev|next|YYYY-MM-DD]
-        :Mdw tags {tags}
-        :Mdw aliases {names}
-        :Mdw property {key} {value}
-        :Mdw list continue
-        :Mdw list nest
-        :Mdw list unnest
-        :Mdw list check
+        :mdw search [query]
+        :mdw index
+        :mdw health
+        :mdw follow
+        :mdw sidebar
+        :mdw backlinks
+        :mdw outgoing
+        :mdw outline
+        :mdw qf backlinks
+        :mdw rename {path}
+        :mdw new {path}
+        :mdw daily [today|yesterday|tomorrow|prev|next|YYYY-MM-DD]
+        :mdw tags {tags}
+        :mdw aliases {names}
+        :mdw property {key} {value}
+        :mdw list continue
+        :mdw list nest
+        :mdw list unnest
+        :mdw list check
         In a note: <CR> and o continue, >> and << nest, <leader>x checks
-        :Mdw format
-        :Mdw lint
-        :Mdw image
+        :mdw format
+        :mdw lint
+        :mdw image
       '';
 
       entry = pkgs.writeShellScriptBin "mdw-nvim" ''
