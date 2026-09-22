@@ -1,6 +1,6 @@
 # mdw.nvim
 
-Current release: [v0.0.1](https://github.com/lmdevv/mdw.nvim/releases/tag/v0.0.1).
+Current release: [v0.0.2](https://github.com/lmdevv/mdw.nvim/releases/tag/v0.0.2).
 
 Markdown workspace tools for Neovim 0.11 and newer. Search notes by path, title, alias, and tag. Follow links, keep a sidebar, rename a note and its references, create notes and daily notes, and edit lists. Formatting and diagnostics are optional.
 
@@ -31,7 +31,7 @@ Call `setup()` after install. Until then the plugin adds no commands.
 ```lua
 {
   "lmdevv/mdw.nvim",
-  version = "v0.0.1",
+  version = "v0.0.2",
   config = function()
     require("mdw").setup()
   end,
@@ -43,7 +43,7 @@ Call `setup()` after install. Until then the plugin adds no commands.
 Neovim 0.12 and newer:
 
 ```lua
-vim.pack.add({ { src = "https://github.com/lmdevv/mdw.nvim", version = "v0.0.1" } })
+vim.pack.add({ { src = "https://github.com/lmdevv/mdw.nvim", version = "v0.0.2" } })
 require("mdw").setup()
 ```
 
@@ -52,7 +52,7 @@ The command name is `:Mdw`. Typing `:mdw` is rewritten to `:Mdw`.
 ### NixVim
 
 ```nix
-inputs.mdw.url = "github:lmdevv/mdw.nvim/v0.0.1";
+inputs.mdw.url = "github:lmdevv/mdw.nvim/v0.0.2";
 
 programs.nixvim = {
   imports = [ inputs.mdw.nixvimModules.default ];
