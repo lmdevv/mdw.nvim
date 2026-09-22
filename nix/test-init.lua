@@ -22,7 +22,11 @@ require("mini.statusline").setup({ use_icons = true })
 
 require("snacks").setup({
   image = {
-    doc = { inline = true },
+    doc = {
+      inline = true,
+      max_width = 18,
+      max_height = 10,
+    },
     math = { enabled = false },
   },
   picker = {},
