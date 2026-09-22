@@ -10,31 +10,11 @@ function M.choose(title, items)
   if #items == 0 then
     return
   end
-  local ok, mini = pcall(require, "mini.pick")
-  if ok and type(mini.start) == "function" and package.loaded["mini.pick"] ~= nil then
-    mini.start({
-      source = {
-        items = items,
-        name = title,
-        choose = function(item)
-          if item and item.choose then
-            pick.call_target(item.choose)
-          end
-        end,
-      },
-    })
-    return
-  end
-  vim.ui.select(items, {
-    prompt = title,
-    format_item = function(item)
-      return item.text or ""
-    end,
-  }, function(choice)
-    if choice and choice.choose then
-      choice.choose()
+  pick.show(title, items, function(item)
+    if item and item.choose then
+      item.choose()
     end
-  end)
+  end, false)
 end
 
 return M

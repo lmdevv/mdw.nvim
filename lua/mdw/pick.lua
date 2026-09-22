@@ -162,57 +162,243 @@ function M.configure(enabled)
   state.active = true
 end
 
-function M.open(results)
-  if package.loaded["mini.pick"] ~= nil or #vim.api.nvim_get_runtime_file("lua/mini/pick.lua", false) > 0 then
-    local ok, mini = pcall(require, "mini.pick")
-    if ok and type(mini.start) == "function" then
-      return mini.start({
-        source = {
-          items = results,
-          name = "mdw notes",
-          choose = M.choose,
-          match = function(_, _, query)
-            local prompt = vim.trim(plain_prompt(table.concat(query or {})))
-            if prompt == "" then
-              local inds = {}
-              for index = 1, #results do
-                inds[index] = index
-              end
-              return inds
-            end
-            local narrowed = search.query_notes(
-              vim.tbl_map(function(item)
-                return item.note
-              end, results),
-              plain_prompt(prompt)
-            )
-            local positions = {}
-            for index, item in ipairs(results) do
-              positions[item.relpath] = index
-            end
-            local inds = {}
-            for _, hit in ipairs(narrowed) do
-              local index = positions[hit.relpath]
-              if index then
-                inds[#inds + 1] = index
-              end
-            end
-            return inds
-          end,
-        },
-      })
+local function narrow(items, prompt)
+  prompt = vim.trim(plain_prompt(prompt or ""))
+  if prompt == "" then
+    return items
+  end
+  local notes = {}
+  for _, item in ipairs(items) do
+    if item.note then
+      notes[#notes + 1] = item.note
     end
   end
-  vim.ui.select(results, {
-    prompt = "mdw notes",
+  local hits = search.query_notes(notes, prompt)
+  local by_rel = {}
+  for _, item in ipairs(items) do
+    by_rel[item.relpath] = item
+  end
+  local out = {}
+  for _, hit in ipairs(hits) do
+    local item = by_rel[hit.relpath]
+    if item then
+      out[#out + 1] = item
+    end
+  end
+  return out
+end
+
+local function runtime_has(path)
+  return #vim.api.nvim_get_runtime_file(path, false) > 0
+end
+
+function M.mini_available()
+  local loaded = package.loaded["mini.pick"]
+  if type(loaded) == "table" and type(loaded.start) == "function" then
+    return true
+  end
+  return loaded == nil and runtime_has("lua/mini/pick.lua")
+end
+
+function M.snacks_available()
+  local loaded = package.loaded["snacks"]
+  if type(loaded) == "table" and type(loaded.picker) == "table" and type(loaded.picker.pick) == "function" then
+    return true
+  end
+  return loaded == nil and runtime_has("lua/snacks/picker/init.lua")
+end
+
+function M.telescope_available()
+  if package.loaded["telescope.pickers"] ~= nil or package.loaded["telescope"] ~= nil then
+    return true
+  end
+  return runtime_has("lua/telescope/pickers.lua")
+end
+
+function M.backend()
+  local choice = config.get().search.picker or "auto"
+  if choice == "mini" and M.mini_available() then
+    return "mini"
+  end
+  if choice == "snacks" and M.snacks_available() then
+    return "snacks"
+  end
+  if choice == "telescope" and M.telescope_available() then
+    return "telescope"
+  end
+  if choice == "select" then
+    return "select"
+  end
+  if choice ~= "auto" then
+    return "select"
+  end
+  if M.mini_available() then
+    return "mini"
+  end
+  if M.snacks_available() then
+    return "snacks"
+  end
+  if M.telescope_available() then
+    return "telescope"
+  end
+  return "select"
+end
+
+local function deliver(on_choice, item)
+  if not item then
+    return
+  end
+  M.call_target(function()
+    on_choice(item)
+  end)
+end
+
+local function show_mini(title, items, on_choice, live)
+  local mini = require("mini.pick")
+  local source = {
+    items = items,
+    name = title,
+    choose = function(item)
+      deliver(on_choice, item)
+    end,
+  }
+  if live then
+    source.match = function(_, _, query)
+      local prompt = vim.trim(plain_prompt(table.concat(query or {})))
+      local narrowed = narrow(items, prompt)
+      local positions = {}
+      for index, item in ipairs(items) do
+        positions[item.relpath] = index
+      end
+      local inds = {}
+      for _, item in ipairs(narrowed) do
+        local index = positions[item.relpath]
+        if index then
+          inds[#inds + 1] = index
+        end
+      end
+      return inds
+    end
+  end
+  return mini.start({ source = source })
+end
+
+local function show_snacks(title, items, on_choice, live)
+  local snacks = require("snacks")
+  local opts = {
+    title = title,
+    format = "text",
+    confirm = function(picker, item)
+      if picker and type(picker.close) == "function" then
+        picker:close()
+      end
+      deliver(on_choice, item and (item.mdw or item))
+    end,
+  }
+  if live then
+    opts.live = true
+    opts.pattern = function()
+      return ""
+    end
+    opts.matcher = { fuzzy = false, sort_empty = false }
+    opts.finder = function(_, ctx)
+      local prompt = ctx and ctx.filter and ctx.filter.search or ""
+      local found = {}
+      for _, item in ipairs(narrow(items, prompt)) do
+        found[#found + 1] = { text = item.text, file = item.path, path = item.path, mdw = item }
+      end
+      return found
+    end
+  else
+    opts.items = {}
+    for _, item in ipairs(items) do
+      opts.items[#opts.items + 1] = {
+        text = item.text or "",
+        file = item.path,
+        path = item.path,
+        mdw = item,
+      }
+    end
+  end
+  return snacks.picker.pick(opts)
+end
+
+local function show_telescope(title, items, on_choice, live)
+  local pickers = require("telescope.pickers")
+  local finders = require("telescope.finders")
+  local actions = require("telescope.actions")
+  local action_state = require("telescope.actions.state")
+  local finder
+  local sorter
+  if live then
+    finder = finders.new_dynamic({
+      fn = function(prompt)
+        return narrow(items, prompt)
+      end,
+      entry_maker = function(item)
+        return { value = item, display = item.text or "", ordinal = item.text or "" }
+      end,
+    })
+    sorter = require("telescope.sorters").Sorter:new({
+      discard = true,
+      scoring_function = function()
+        return 1
+      end,
+    })
+  else
+    finder = finders.new_table({
+      results = items,
+      entry_maker = function(item)
+        return { value = item, display = item.text or "", ordinal = item.text or "" }
+      end,
+    })
+    sorter = require("telescope.config").values.generic_sorter({})
+  end
+  return pickers.new({}, {
+    prompt_title = title,
+    finder = finder,
+    sorter = sorter,
+    attach_mappings = function(prompt_bufnr)
+      actions.select_default:replace(function()
+        local selection = action_state.get_selected_entry()
+        actions.close(prompt_bufnr)
+        if selection then
+          deliver(on_choice, selection.value)
+        end
+      end)
+      return true
+    end,
+  }):find()
+end
+
+local function show_select(title, items, on_choice)
+  vim.ui.select(items, {
+    prompt = title,
     format_item = function(item)
-      return item.text
+      return item.text or ""
     end,
   }, function(choice)
-    if choice then
-      M.choose(choice)
-    end
+    deliver(on_choice, choice)
   end)
+end
+
+function M.show(title, items, on_choice, live)
+  local backend = M.backend()
+  local ok = false
+  if backend == "mini" then
+    ok = pcall(show_mini, title, items, on_choice, live)
+  elseif backend == "snacks" then
+    ok = pcall(show_snacks, title, items, on_choice, live)
+  elseif backend == "telescope" then
+    ok = pcall(show_telescope, title, items, on_choice, live)
+  end
+  if not ok then
+    show_select(title, items, on_choice)
+  end
+end
+
+function M.open(results)
+  M.show("mdw notes", results, M.choose, true)
 end
 
 function M.search(query)
@@ -223,10 +409,7 @@ function M.search(query)
 end
 
 function M.available()
-  if package.loaded["mini.pick"] ~= nil then
-    return true
-  end
-  return #vim.api.nvim_get_runtime_file("lua/mini/pick.lua", false) > 0
+  return M.mini_available()
 end
 
 function M.enrich_enabled()

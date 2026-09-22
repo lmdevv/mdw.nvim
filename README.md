@@ -54,7 +54,7 @@ Modified buffers are read from editor text, so unsaved edits are searchable. Oth
 
 ## Search
 
-`:mdw search` opens `mini.pick` when it is installed and `vim.ui.select` otherwise.
+`:mdw search` uses `search.picker`. `auto` (the default) uses `mini.pick`, then Snacks, then Telescope, and `vim.ui.select` when none of those is installed. Set `search.picker` to `mini`, `snacks`, `telescope`, or `select` to choose one. The note list keeps mdw's own ranking; the picker does not re-filter it.
 
 A query is text plus optional `#tag` filters. Every filter must match the whole tag, ignoring case, so `#parent` does not match `parent/child`. Every text token must match a substring of the path, filename, title, aliases, or tags. Text is case-insensitive until the query contains an uppercase letter.
 

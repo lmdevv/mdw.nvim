@@ -502,6 +502,148 @@ add("mini.pick enrichment wraps once and can be removed", function()
   package.loaded["mini.pick"] = nil
 end)
 
+add("snacks and telescope show ranked note search", function()
+  local dir = tmp()
+  write(dir, "plan.md", "---\ntitle: Budget\ntags: work\n---\n# Budget\n")
+  write(dir, "other.md", "# Other\n")
+  local mdw = require("mdw")
+  local ui = require("mdw.ui")
+  local pick = require("mdw.pick")
+  vim.cmd.cd(dir)
+  local previous_select = vim.ui.select
+  local loaded = {}
+  for _, name in ipairs({
+    "snacks",
+    "telescope",
+    "telescope.pickers",
+    "telescope.finders",
+    "telescope.actions",
+    "telescope.actions.state",
+    "telescope.sorters",
+    "telescope.config",
+    "mini.pick",
+  }) do
+    loaded[name] = package.loaded[name]
+  end
+
+  local snacks_opts = nil
+  package.loaded["mini.pick"] = nil
+  package.loaded["telescope"] = nil
+  package.loaded["snacks"] = {
+    picker = {
+      pick = function(opts)
+        snacks_opts = opts
+      end,
+    },
+  }
+  mdw.setup({ workspace = { root = dir }, search = { picker = "auto" } })
+  eq(pick.backend(), "snacks", "auto uses snacks when mini.pick is absent")
+  vim.cmd("Mdw search")
+  eq(snacks_opts.title, "mdw notes", "snacks picker title")
+  eq(snacks_opts.live, true, "note search is a live snacks finder")
+  local empty = snacks_opts.finder(nil, { filter = { search = "" } })
+  eq(#empty, 2, "an empty snacks query lists every note")
+  local budget = snacks_opts.finder(nil, { filter = { search = "budget" } })
+  eq(#budget, 1, "snacks query keeps mdw ranking")
+  eq(budget[1].mdw.relpath, "plan.md", "snacks result is the matching note")
+  local closed = false
+  snacks_opts.confirm({
+    close = function()
+      closed = true
+    end,
+  }, budget[1])
+  eq(closed, true, "snacks confirm closes the picker")
+  eq(vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":t"), "plan.md", "snacks confirm opens the note")
+
+  package.loaded["mini.pick"] = {
+    start = function()
+      error("mini.pick should stay closed when snacks is selected")
+    end,
+  }
+  snacks_opts = nil
+  mdw.setup({ workspace = { root = dir }, search = { picker = "snacks" } })
+  vim.cmd("Mdw search")
+  truthy(snacks_opts ~= nil, "explicit snacks wins over mini.pick")
+  snacks_opts = nil
+  ui.choose("mdw links", {
+    { text = "first link", choose = function() end },
+  })
+  eq(snacks_opts.live, nil, "the link chooser is a static snacks list")
+  eq(snacks_opts.items[1].text, "first link", "the link chooser shows the candidate")
+
+  local spec = nil
+  package.loaded["telescope"] = {}
+  package.loaded["telescope.pickers"] = {
+    new = function(_, opts)
+      spec = opts
+      return {
+        find = function()
+          opts.attach_mappings(0)
+        end,
+      }
+    end,
+  }
+  package.loaded["telescope.finders"] = {
+    new_dynamic = function(opts)
+      return opts
+    end,
+    new_table = function(opts)
+      return opts
+    end,
+  }
+  package.loaded["telescope.actions"] = {
+    select_default = {
+      replace = function(_, fn)
+        spec.select = fn
+      end,
+    },
+    close = function() end,
+  }
+  package.loaded["telescope.actions.state"] = {
+    get_selected_entry = function()
+      return spec.finder.fn("other")[1] and { value = spec.finder.fn("other")[1] } or nil
+    end,
+  }
+  package.loaded["telescope.sorters"] = {
+    Sorter = {
+      new = function(_, opts)
+        return opts
+      end,
+    },
+  }
+  package.loaded["telescope.config"] = {
+    values = {
+      generic_sorter = function()
+        return { name = "generic" }
+      end,
+    },
+  }
+  mdw.setup({ workspace = { root = dir }, search = { picker = "telescope" } })
+  vim.cmd("Mdw search")
+  eq(spec.prompt_title, "mdw notes", "telescope picker title")
+  eq(#spec.finder.fn(""), 2, "an empty telescope query lists every note")
+  eq(spec.finder.fn("budget")[1].relpath, "plan.md", "telescope query keeps mdw ranking")
+  eq(spec.sorter.scoring_function(), 1, "telescope keeps mdw order")
+  spec.select()
+  eq(vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":t"), "other.md", "telescope confirm opens the note")
+
+  local selected = nil
+  vim.ui.select = function(items, _, on_choice)
+    selected = items
+    on_choice(nil)
+  end
+  mdw.setup({ workspace = { root = dir }, search = { picker = "select" } })
+  vim.cmd("Mdw search")
+  eq(#selected, 2, "select shows the note list even when other pickers exist")
+  eq(pcall(mdw.setup, { search = { picker = "fzf" } }), false, "an unknown picker name is rejected")
+
+  vim.ui.select = previous_select
+  for name, value in pairs(loaded) do
+    package.loaded[name] = value
+  end
+  vim.cmd.cd(saved_cwd)
+end)
+
 add("links resolve outside code and ignore labels", function()
   local scan = require("mdw.scan")
   local note = scan.parse([=[

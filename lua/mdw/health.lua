@@ -16,6 +16,7 @@ function M.collect()
     revision = 0,
     errors = {},
     mini_pick = pick.available(),
+    picker = "select",
     enrich = false,
     enrich_wrapped = pick.wrapped(),
     obsidian = false,
@@ -33,6 +34,7 @@ function M.collect()
     return report
   end
   report.enrich = config.get().search.enrich_files
+  report.picker = pick.backend()
   report.obsidian = config.get().obsidian.enabled
   report.obsidian_command = require("mdw.obsidian").available()
   report.rumdl = require("mdw.format").available()
@@ -72,10 +74,14 @@ function M.check()
     vim.health.error("workspace root could not be resolved")
   end
   vim.health.info(string.format("%d notes, index revision %d", report.notes, report.revision))
-  if report.mini_pick then
-    vim.health.ok("mini.pick is available")
+  if report.picker == "select" then
+    vim.health.info(":mdw search uses vim.ui.select")
   else
-    vim.health.info(":mdw search uses vim.ui.select because mini.pick is not installed")
+    vim.health.ok(":mdw search uses " .. report.picker)
+  end
+  local requested = config.get().search.picker or "auto"
+  if requested ~= "auto" and requested ~= report.picker then
+    vim.health.warn("search.picker is " .. requested .. ", which is not available")
   end
   if report.enrich and report.enrich_wrapped then
     vim.health.ok("file-search enrichment is enabled")

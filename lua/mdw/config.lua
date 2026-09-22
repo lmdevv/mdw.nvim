@@ -8,6 +8,7 @@ local defaults = {
   },
   search = {
     enrich_files = false,
+    picker = "auto",
   },
   notes = {
     extensions = EXTENSIONS,
@@ -103,6 +104,10 @@ function M.apply(opts)
   end
   if search.enrich_files ~= nil and type(search.enrich_files) ~= "boolean" then
     error("mdw: search.enrich_files must be a boolean")
+  end
+  local pickers = { auto = true, mini = true, snacks = true, telescope = true, select = true }
+  if search.picker ~= nil and pickers[search.picker] ~= true then
+    error("mdw: search.picker must be auto, mini, snacks, telescope, or select")
   end
 
   local extensions = notes.extensions and copy_extensions(notes.extensions) or vim.deepcopy(EXTENSIONS)
@@ -208,6 +213,7 @@ function M.apply(opts)
     },
     search = {
       enrich_files = search.enrich_files == true,
+      picker = search.picker or "auto",
     },
     notes = {
       extensions = extensions,

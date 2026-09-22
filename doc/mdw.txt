@@ -71,8 +71,13 @@ changed.
 ==============================================================================
 SEARCH                                                                *mdw-search*
 
-`:mdw search` uses |mini.pick| when that plugin is installed, and
-|vim.ui.select()| otherwise. The query may contain text and `#tag` filters.
+`:mdw search` uses the picker named by `search.picker`. `auto` uses
+|mini.pick|, then Snacks (`snacks.picker`), then Telescope, and
+|vim.ui.select()| when none of those is installed. Set `search.picker` to
+`mini`, `snacks`, `telescope`, or `select` to choose one. A missing explicit
+picker falls back to |vim.ui.select()| and is reported by |:checkhealth|.
+The note list keeps mdw's ranking. The query may contain text and `#tag`
+filters.
 Every tag filter must match exactly, ignoring case. `#parent` does not match
 the tag `parent/child`.
 
