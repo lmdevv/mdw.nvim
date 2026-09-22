@@ -50,7 +50,7 @@ let
 
       # Start here
 
-      ![welcome](assets/welcome.png)
+      ![Neovim](assets/welcome.png)
 
       Press space. The next key appears beside it. These keys exist only in this demo.
 
@@ -218,7 +218,12 @@ let
     Follow gd from each note to the next one.
   '';
 
-  fixture = pkgs.runCommand "mdw-fixture" { nativeBuildInputs = [ pkgs.git pkgs.imagemagick ]; } ''
+  logo = pkgs.fetchurl {
+    url = "https://raw.githubusercontent.com/neovim/neovim.github.io/5801b2318a1b1fd880e54985cce8357affe855f0/static/logos/neovim-mark.png";
+    sha256 = "07kd2g9ychmcvk0amabjhkc4x6k1npp1zxbrk44i8x13vnj22168";
+  };
+
+  fixture = pkgs.runCommand "mdw-fixture" { nativeBuildInputs = [ pkgs.git ]; } ''
     mkdir -p $out/opt/fixture
     ${lib.concatStringsSep "\n" (
       lib.mapAttrsToList (path: text: ''
@@ -226,7 +231,7 @@ let
       '') notes
     )}
     mkdir -p $out/opt/fixture/vault/assets
-    magick -size 960x140 gradient:'#1e1e2e'-'#89b4fa' $out/opt/fixture/vault/assets/welcome.png
+    cp ${logo} $out/opt/fixture/vault/assets/welcome.png
     cp ${pkgs.writeText "mdw-howto" howto} $out/opt/fixture/HOWTO.txt
     git -C $out/opt/fixture/vault init -q
   '';
