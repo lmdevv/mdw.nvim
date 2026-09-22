@@ -159,7 +159,6 @@ EDITING                                                            *mdw-editing*
 :Mdw format    Format the buffer with rumdl
 :Mdw lint      Show rumdl diagnostics
 :Mdw image     Paste a clipboard image
-:Mdw preview   Start or stop the note preview
 <C-8>          Cycle plain text, bullet, unchecked, checked
 
 Format on save is off by default. A failed format leaves the buffer unchanged.
@@ -170,7 +169,6 @@ and do not replace an existing file.
 `lsp.enabled` attaches `markdown-oxide`. `lsp.rename` gives rename to that
 server, and `:Mdw rename` then leaves the files alone.
 
-The preview serves the current buffer, including unsaved text, on
-127.0.0.1. Repeated note embeds stop instead of looping.
+Browser preview is not in this release. See the later-work note in PRD.md.
 
 vim:tw=78:ts=8:noet:ft=help:norl:

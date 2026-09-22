@@ -40,7 +40,3 @@ vim.keymap.set("n", "<leader>sd", function()
     vim.notify("mdw: " .. (err or "could not open the daily note"), vim.log.levels.ERROR)
   end
 end, { desc = "Daily note" })
-
-vim.keymap.set("n", "<leader>sp", function()
-  require("mdw.preview").toggle()
-end, { desc = "Note preview" })

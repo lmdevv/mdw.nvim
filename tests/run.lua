@@ -761,11 +761,9 @@ fi
   vim.fn.confirm = saved
 end)
 
-add("tasks, images, formatting, and preview", function()
+add("tasks, images, and formatting", function()
   local dir = tmp()
   local note = write(dir, "note.md", "task\n")
-  write(dir, "a.md", "See\n\n![[b]]\n")
-  write(dir, "b.md", "From B\n\n![[a]]\n")
   local mdw = require("mdw")
   local script = dir .. "/rumdl"
   local handle = assert(io.open(script, "wb"))
@@ -898,42 +896,6 @@ printf '%s\n' '# Formatted'
   eq(health.render, true, "render option is reported")
   eq(health.render_ready, false, "missing render-markdown is not marked ready")
   truthy(pcall(require("mdw.health").check), "health still runs without render-markdown")
-
-  mdw.setup({ workspace = { root = dir } })
-  mdw.rebuild()
-  local preview = require("mdw.preview")
-  local page = preview.html(dir, "a.md")
-  truthy(page:find("From B", 1, true) ~= nil, "preview inlines an embed")
-  truthy(page:find("Embed cycle: a.md", 1, true) ~= nil, "preview stops an embed cycle")
-  vim.bo.modified = false
-  vim.cmd.edit(vim.fn.fnameescape(dir .. "/a.md"))
-  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "unsaved preview" })
-  local port = preview.start()
-  truthy(type(port) == "number", "preview binds a port")
-  local sock = vim.uv.new_tcp()
-  local received = {}
-  local done = false
-  sock:connect("127.0.0.1", port, function(err)
-    if err then
-      done = true
-      return
-    end
-    sock:write("GET / HTTP/1.0\r\nHost: localhost\r\n\r\n")
-    sock:read_start(function(_, chunk)
-      if chunk then
-        received[#received + 1] = chunk
-      else
-        done = true
-        sock:close()
-      end
-    end)
-  end)
-  vim.wait(2000, function()
-    return done
-  end)
-  local response = table.concat(received)
-  truthy(response:find("unsaved preview", 1, true) ~= nil, "preview serves the unsaved buffer")
-  preview.stop()
 end)
 
 local function finish()

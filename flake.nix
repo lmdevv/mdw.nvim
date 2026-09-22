@@ -210,8 +210,6 @@
         :Mdw format
         :Mdw lint
         :Mdw image
-        :Mdw preview
-        <leader>sp  preview
       '';
 
       entry = pkgs.writeShellScriptBin "mdw-nvim" ''

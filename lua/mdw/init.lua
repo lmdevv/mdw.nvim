@@ -27,7 +27,6 @@ local COMMANDS = {
   "obsidian",
   "format",
   "lint",
-  "preview",
   "image",
 }
 
@@ -49,7 +48,6 @@ local USAGE = table.concat({
   "  :Mdw obsidian",
   "  :Mdw format",
   "  :Mdw lint",
-  "  :Mdw preview",
   "  :Mdw image",
 }, "\n")
 
@@ -263,8 +261,6 @@ local function dispatch(args)
     if not ok then
       vim.notify("mdw: " .. (err or "lint failed"), vim.log.levels.ERROR)
     end
-  elseif sub == "preview" then
-    require("mdw.preview").toggle()
   elseif sub == "image" then
     local path, err = require("mdw.edit").paste_image()
     if not path then
@@ -302,7 +298,6 @@ function M.setup(opts)
   pick.configure(config.get().search.enrich_files)
   require("mdw.render").reset()
   require("mdw.render").configure()
-  require("mdw.preview").stop()
 end
 
 function M.search(query)
