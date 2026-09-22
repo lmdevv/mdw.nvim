@@ -21,12 +21,6 @@ require("mini.icons").setup()
 require("mini.pick").setup()
 require("mini.statusline").setup({ use_icons = true })
 
-local function type_command(command)
-  return function()
-    vim.api.nvim_feedkeys(":" .. command, "n", false)
-  end
-end
-
 local function open_note(path)
   return function()
     vim.cmd.edit(vim.fn.fnameescape(path))
@@ -38,50 +32,57 @@ require("mini.starter").setup({
   header = table.concat({
     "mdw",
     "",
-    "This Neovim is only the demo. It does not load your config.",
-    "Leader is space. Press Enter on a row.",
+    "Press space. The next key appears.",
+    "Press Enter on Open the walkthrough, then follow gd from each note.",
+    "This Neovim does not load your config.",
   }, "\n"),
   footer = table.concat({
+    "Inline images need a terminal with the Kitty graphics protocol.",
     "rumdl formats and lints. markdown-oxide is the language server.",
-    "render-markdown draws the note. File search also matches title, alias, and tag.",
-    "",
-    "The same guide is in :e ../HOWTO.txt",
   }, "\n"),
   items = {
-    { name = "links.md", action = open_note("links.md"), section = "Walk the vault" },
-    { name = "exact.md  — title, alias, and tag", action = open_note("exact.md"), section = "Walk the vault" },
-    { name = "nested.md  — heading and block", action = open_note("nested.md"), section = "Walk the vault" },
-    { name = "label.md  — a label is not an alias", action = open_note("label.md"), section = "Walk the vault" },
-    { name = "a/note.md  — ambiguous with b/note.md", action = open_note("a/note.md"), section = "Walk the vault" },
-    { name = "misc.md  — tag budget", action = open_note("misc.md"), section = "Walk the vault" },
-    { name = "bad.md  — skipped malformed frontmatter", action = open_note("bad.md"), section = "Walk the vault" },
-    { name = "../elsewhere/loose.md  — outside this git repo", action = open_note("../elsewhere/loose.md"), section = "Walk the vault" },
-    { name = "../other-repo/bee.md  — a second workspace", action = open_note("../other-repo/bee.md"), section = "Walk the vault" },
+    { name = "Open the walkthrough", action = open_note("Welcome.md"), section = "Start" },
 
-    { name = ":mdw search", action = function() require("mdw.pick").search("") end, section = "Commands" },
-    { name = ":mdw dailies", action = "Mdw dailies", section = "Commands" },
-    { name = ":mdw daily", action = "Mdw daily", section = "Commands" },
-    { name = ":mdw sidebar on links.md", action = function()
-      vim.cmd.edit("links.md")
+    { name = "space s n    search notes", action = function()
+      require("mdw.pick").search("")
+    end, section = "Keys" },
+    { name = "space s f    search files", action = function()
+      require("mini.pick").builtin.files()
+    end, section = "Keys" },
+    { name = "space s h    health", action = "checkhealth mdw", section = "Keys" },
+    { name = "space s s    sidebar", action = function()
+      vim.cmd.edit("Welcome.md")
       require("mdw.sidebar").toggle()
-    end, section = "Commands" },
-    { name = ":mdw health", action = "checkhealth mdw", section = "Commands" },
-    { name = ":mdw new ", action = type_command("mdw new "), section = "Commands" },
-    { name = ":mdw rename ", action = type_command("mdw rename "), section = "Commands" },
-    { name = ":mdw format", action = "Mdw format", section = "Commands" },
-    { name = ":mdw lint", action = "Mdw lint", section = "Commands" },
-
-    { name = "<leader>sn  search notes", action = function() require("mdw.pick").search("") end, section = "Demo keys" },
-    { name = "<leader>sf  search files", action = function() require("mini.pick").builtin.files() end, section = "Demo keys" },
-    { name = "<leader>sh  health", action = "checkhealth mdw", section = "Demo keys" },
-    { name = "<leader>ss  sidebar", action = function() require("mdw.sidebar").toggle() end, section = "Demo keys" },
-    { name = "<leader>sd  today's daily note", action = "Mdw daily", section = "Demo keys" },
-    { name = "gd  follow the link under the cursor", action = open_note("links.md"), section = "Demo keys" },
+    end, section = "Keys" },
+    { name = "space s d    today's daily note", action = "Mdw daily", section = "Keys" },
+    { name = "g d          follow the link under the cursor", action = open_note("Welcome.md"), section = "Keys" },
+    { name = "Enter, o     continue a list item", action = open_note("Edit.md"), section = "Keys" },
+    { name = ">>  <<       nest or unnest a list item", action = open_note("Edit.md"), section = "Keys" },
+    { name = "space x      toggle a checkbox", action = open_note("Edit.md"), section = "Keys" },
   },
 })
 
 require("catppuccin").setup({ flavour = "mocha" })
 vim.cmd.colorscheme("catppuccin")
+
+pcall(function()
+  require("image").setup({
+    backend = "kitty",
+    processor = "magick_cli",
+    integrations = {
+      markdown = {
+        enabled = true,
+        download_remote_images = false,
+        only_render_image_at_cursor = false,
+      },
+      asciidoc = { enabled = false },
+      typst = { enabled = false },
+      neorg = { enabled = false },
+      syslang = { enabled = false },
+    },
+    max_height_window_percentage = 30,
+  })
+end)
 
 vim.api.nvim_create_autocmd("FileType", {
   pattern = { "markdown", "mdx" },
@@ -94,7 +95,12 @@ vim.api.nvim_create_autocmd("FileType", {
 
 require("mdw").setup({
   search = { enrich_files = true },
-  render = { enabled = true },
+  render = {
+    enabled = true,
+    opts = {
+      link = { image = "" },
+    },
+  },
   lsp = { enabled = true },
   create = {
     templates = {
@@ -127,12 +133,34 @@ end, { desc = "Search files" })
 
 vim.keymap.set("n", "<leader>sh", function()
   vim.cmd("checkhealth mdw")
-end, { desc = "mdw health" })
+end, { desc = "Health" })
 
 vim.keymap.set("n", "<leader>ss", function()
   require("mdw.sidebar").toggle()
-end, { desc = "Note sidebar" })
+end, { desc = "Sidebar" })
 
 vim.keymap.set("n", "<leader>sd", function()
   vim.cmd("Mdw daily")
-end, { desc = "Daily note" })
+end, { desc = "Today's daily note" })
+
+local miniclue = require("mini.clue")
+miniclue.setup({
+  triggers = {
+    { mode = "n", keys = "<Leader>" },
+    { mode = "n", keys = "g" },
+  },
+  clues = {
+    { mode = "n", keys = "<Leader>s", desc = "+Show" },
+    miniclue.gen_clues.g(),
+  },
+  window = {
+    delay = 0,
+    config = { width = "auto" },
+  },
+})
+
+vim.api.nvim_create_autocmd("BufEnter", {
+  callback = function()
+    pcall(miniclue.ensure_buf_triggers)
+  end,
+})
