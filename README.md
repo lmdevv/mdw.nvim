@@ -64,9 +64,11 @@ programs.nixvim = {
 
 `settings` is passed to `require("mdw").setup()`. `extraPackages` is added to Neovim's `PATH`. A standalone NixVim configuration imports the same module through `nixvim.lib.evalNixvim`.
 
+NixVim does not ship this plugin. Import `nixvimModules.default` from this flake. That module installs the plugin and calls `setup()`.
+
 ## Try it
 
-On x86_64-linux, with Nix:
+With Nix, on x86_64-linux, aarch64-linux, or aarch64-darwin:
 
 ```sh
 nix run github:lmdevv/mdw.nvim
@@ -151,10 +153,11 @@ Set `obsidian.import_daily` to false to ignore `.obsidian/daily-notes.json`. Set
 ## Contributing
 
 ```sh
+nix develop
 make test
 ```
 
-Tests run headless on Neovim. The `nix run` demo is for trying the plugin. Design notes are not part of the published tree.
+`nix develop` provides Neovim, git, and rumdl. Tests run headless. The `nix run` demo is for trying the plugin. Design notes are not part of the published tree.
 
 ## License
 
