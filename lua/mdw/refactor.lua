@@ -280,6 +280,9 @@ function M.apply(plan)
 end
 
 function M.rename(root, from_rel, to_rel)
+  if require("mdw.lsp").owns_rename() then
+    return nil, "rename is handled by the language server"
+  end
   local plan, err = M.plan(root, from_rel, to_rel)
   if not plan then
     return nil, err

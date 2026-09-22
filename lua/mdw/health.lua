@@ -20,6 +20,14 @@ function M.collect()
     enrich_wrapped = pick.wrapped(),
     obsidian = false,
     obsidian_command = nil,
+    rumdl = false,
+    format_on_save = false,
+    lint = false,
+    render = false,
+    render_ready = false,
+    lsp = false,
+    lsp_ready = false,
+    lsp_rename = false,
   }
   if not report.setup then
     return report
@@ -27,6 +35,14 @@ function M.collect()
   report.enrich = config.get().search.enrich_files
   report.obsidian = config.get().obsidian.enabled
   report.obsidian_command = require("mdw.obsidian").available()
+  report.rumdl = require("mdw.format").available()
+  report.format_on_save = config.get().format.format_on_save
+  report.lint = config.get().format.lint
+  report.render = config.get().render.enabled
+  report.render_ready = require("mdw.render").active()
+  report.lsp = config.get().lsp.enabled
+  report.lsp_ready = require("mdw.lsp").available()
+  report.lsp_rename = config.get().lsp.rename
   local ok, root = pcall(workspace.resolve, 0)
   if ok and root then
     report.root = root
@@ -74,6 +90,31 @@ function M.check()
     vim.health.warn("obsidian integration is enabled, but the CLI was not found")
   else
     vim.health.info("obsidian CLI integration is off")
+  end
+  if report.rumdl then
+    vim.health.ok("rumdl is available")
+  else
+    vim.health.info("rumdl was not found; :Mdw format and :Mdw lint are unavailable")
+  end
+  if report.format_on_save then
+    vim.health.info("format on save is on")
+  end
+  if report.render and report.render_ready then
+    vim.health.ok("render-markdown is enabled")
+  elseif report.render then
+    vim.health.warn("render.enabled is set, but render-markdown is not installed")
+  else
+    vim.health.info("in-buffer rendering is off")
+  end
+  if report.lsp and report.lsp_ready then
+    vim.health.ok("markdown-oxide is available")
+  elseif report.lsp then
+    vim.health.warn("lsp.enabled is set, but markdown-oxide was not found")
+  else
+    vim.health.info("markdown-oxide is off")
+  end
+  if report.lsp_rename then
+    vim.health.info("rename is owned by the language server")
   end
   for _, err in ipairs(report.errors) do
     vim.health.warn(err.path .. ": " .. err.message)

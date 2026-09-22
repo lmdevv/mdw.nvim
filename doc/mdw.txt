@@ -150,6 +150,27 @@ HEALTH                                                                *mdw-healt
 :checkhealth mdw
 
 Reports the Neovim version, workspace root, note count, skipped files,
-mini.pick availability, file-search enrichment, and the Obsidian CLI.
+mini.pick, file-search enrichment, Obsidian, rumdl, rendering, and
+markdown-oxide.
+
+==============================================================================
+EDITING                                                            *mdw-editing*
+
+:Mdw format    Format the buffer with rumdl
+:Mdw lint      Show rumdl diagnostics
+:Mdw image     Paste a clipboard image
+:Mdw preview   Start or stop the note preview
+<C-8>          Cycle plain text, bullet, unchecked, checked
+
+Format on save is off by default. A failed format leaves the buffer unchanged.
+Fenced code is not cycled. Images are written beside the note in `assets/`
+and do not replace an existing file.
+
+`render.enabled` configures `render-markdown.nvim` once when it is installed.
+`lsp.enabled` attaches `markdown-oxide`. `lsp.rename` gives rename to that
+server, and `:Mdw rename` then leaves the files alone.
+
+The preview serves the current buffer, including unsaved text, on
+127.0.0.1. Repeated note embeds stop instead of looping.
 
 vim:tw=78:ts=8:noet:ft=help:norl:

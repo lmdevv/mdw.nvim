@@ -25,6 +25,10 @@ local COMMANDS = {
   "aliases",
   "tags",
   "obsidian",
+  "format",
+  "lint",
+  "preview",
+  "image",
 }
 
 local USAGE = table.concat({
@@ -43,6 +47,10 @@ local USAGE = table.concat({
   "  :Mdw aliases {names}",
   "  :Mdw tags {names}",
   "  :Mdw obsidian",
+  "  :Mdw format",
+  "  :Mdw lint",
+  "  :Mdw preview",
+  "  :Mdw image",
 }, "\n")
 
 local function map_follow(bufnr)
@@ -72,7 +80,28 @@ local function on_buffer(event)
     or "auto"
   index.sync_buffer(event.buf, mode)
   map_follow(event.buf)
+  require("mdw.edit").map(event.buf)
+  require("mdw.lsp").attach(event.buf)
   require("mdw.sidebar").on_note(event.buf)
+end
+
+local function on_write(event)
+  local format = require("mdw.format")
+  local cfg = config.get().format
+  if cfg.enabled ~= true then
+    return
+  end
+  if event.event == "BufWritePre" and cfg.format_on_save then
+    local ok, err = format.format(event.buf)
+    if not ok then
+      vim.notify("mdw: " .. (err or "format failed"), vim.log.levels.ERROR)
+    end
+  elseif event.event == "BufWritePost" and cfg.lint and format.available() then
+    local ok, err = format.lint(event.buf)
+    if not ok then
+      vim.notify("mdw: " .. (err or "lint failed"), vim.log.levels.ERROR)
+    end
+  end
 end
 
 local function complete(arglead, cmdline)
@@ -224,6 +253,23 @@ local function dispatch(args)
     if not ok then
       vim.notify("mdw: " .. (err or "could not open Obsidian"), vim.log.levels.ERROR)
     end
+  elseif sub == "format" then
+    local ok, err = require("mdw.format").format()
+    if not ok then
+      vim.notify("mdw: " .. (err or "format failed"), vim.log.levels.ERROR)
+    end
+  elseif sub == "lint" then
+    local ok, err = require("mdw.format").lint()
+    if not ok then
+      vim.notify("mdw: " .. (err or "lint failed"), vim.log.levels.ERROR)
+    end
+  elseif sub == "preview" then
+    require("mdw.preview").toggle()
+  elseif sub == "image" then
+    local path, err = require("mdw.edit").paste_image()
+    if not path then
+      vim.notify("mdw: " .. (err or "could not paste an image"), vim.log.levels.ERROR)
+    end
   else
     vim.notify("Unknown mdw command: " .. sub .. "\n" .. USAGE, vim.log.levels.ERROR)
   end
@@ -241,6 +287,10 @@ function M.setup(opts)
     group = group,
     callback = on_buffer,
   })
+  vim.api.nvim_create_autocmd({ "BufWritePre", "BufWritePost" }, {
+    group = group,
+    callback = on_write,
+  })
   pcall(vim.api.nvim_del_user_command, "Mdw")
   vim.api.nvim_create_user_command("Mdw", function(cmd)
     dispatch(vim.trim(cmd.args or ""))
@@ -250,6 +300,9 @@ function M.setup(opts)
     desc = "Markdown workspace notes",
   })
   pick.configure(config.get().search.enrich_files)
+  require("mdw.render").reset()
+  require("mdw.render").configure()
+  require("mdw.preview").stop()
 end
 
 function M.search(query)

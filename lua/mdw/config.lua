@@ -30,6 +30,26 @@ local defaults = {
     command = "obsidian",
     import_daily = false,
   },
+  format = {
+    enabled = true,
+    command = "rumdl",
+    format_on_save = false,
+    lint = true,
+  },
+  edit = {
+    cycle = "<C-8>",
+    attachments = "assets",
+    clipboard = nil,
+  },
+  render = {
+    enabled = false,
+    opts = {},
+  },
+  lsp = {
+    enabled = false,
+    command = "markdown-oxide",
+    rename = false,
+  },
 }
 
 local state = {
@@ -111,6 +131,46 @@ function M.apply(opts)
   if obsidian.import_daily ~= nil and type(obsidian.import_daily) ~= "boolean" then
     error("mdw: obsidian.import_daily must be a boolean")
   end
+  local format = opts.format or {}
+  local edit = opts.edit or {}
+  local render = opts.render or {}
+  local lsp = opts.lsp or {}
+  if format.enabled ~= nil and type(format.enabled) ~= "boolean" then
+    error("mdw: format.enabled must be a boolean")
+  end
+  if format.command ~= nil and type(format.command) ~= "string" then
+    error("mdw: format.command must be a string")
+  end
+  if format.format_on_save ~= nil and type(format.format_on_save) ~= "boolean" then
+    error("mdw: format.format_on_save must be a boolean")
+  end
+  if format.lint ~= nil and type(format.lint) ~= "boolean" then
+    error("mdw: format.lint must be a boolean")
+  end
+  if edit.cycle ~= nil and edit.cycle ~= false and type(edit.cycle) ~= "string" then
+    error("mdw: edit.cycle must be a string or false")
+  end
+  if edit.attachments ~= nil and type(edit.attachments) ~= "string" then
+    error("mdw: edit.attachments must be a string")
+  end
+  if edit.clipboard ~= nil and type(edit.clipboard) ~= "table" then
+    error("mdw: edit.clipboard must be a command list")
+  end
+  if render.enabled ~= nil and type(render.enabled) ~= "boolean" then
+    error("mdw: render.enabled must be a boolean")
+  end
+  if render.opts ~= nil and type(render.opts) ~= "table" then
+    error("mdw: render.opts must be a table")
+  end
+  if lsp.enabled ~= nil and type(lsp.enabled) ~= "boolean" then
+    error("mdw: lsp.enabled must be a boolean")
+  end
+  if lsp.command ~= nil and type(lsp.command) ~= "string" then
+    error("mdw: lsp.command must be a string")
+  end
+  if lsp.rename ~= nil and type(lsp.rename) ~= "boolean" then
+    error("mdw: lsp.rename must be a boolean")
+  end
   local templates = {}
   for name, body in pairs(create.templates or {}) do
     if type(name) ~= "string" or type(body) ~= "string" then
@@ -145,6 +205,26 @@ function M.apply(opts)
       enabled = obsidian.enabled == true,
       command = obsidian.command or "obsidian",
       import_daily = obsidian.import_daily == true,
+    },
+    format = {
+      enabled = format.enabled ~= false,
+      command = format.command or "rumdl",
+      format_on_save = format.format_on_save == true,
+      lint = format.lint ~= false,
+    },
+    edit = {
+      cycle = edit.cycle == nil and "<C-8>" or edit.cycle,
+      attachments = edit.attachments or "assets",
+      clipboard = edit.clipboard,
+    },
+    render = {
+      enabled = render.enabled == true,
+      opts = render.opts or {},
+    },
+    lsp = {
+      enabled = lsp.enabled == true,
+      command = lsp.command or "markdown-oxide",
+      rename = lsp.rename == true,
     },
   }
   state.ready = true

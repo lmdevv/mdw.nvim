@@ -31,7 +31,7 @@
           "--prefix"
           "PATH"
           ":"
-          (lib.makeBinPath [ pkgs.git ])
+          (lib.makeBinPath [ pkgs.git pkgs.rumdl ])
         ];
       };
 
@@ -206,6 +206,12 @@
         :Mdw tags {tags}
         :Mdw aliases {names}
         :Mdw property {key} {value}
+        <C-8>       cycle a task
+        :Mdw format
+        :Mdw lint
+        :Mdw image
+        :Mdw preview
+        <leader>sp  preview
       '';
 
       entry = pkgs.writeShellScriptBin "mdw-nvim" ''

@@ -87,13 +87,21 @@ With `search.enrich_files = true`, `MiniPick.builtin.files()` matches the same m
 
 Set `create.backend` to `obsidian` to create through the official CLI. The command is `obsidian vault=<workspace> create path=<file>`, passed as arguments. `:Mdw obsidian` opens the current note in the app.
 
+## Editing and preview
+
+`:Mdw format` sends the buffer to `rumdl` and replaces it only when that command succeeds. The buffer is left unchanged if `rumdl` fails or the text changed while it was running. Formatting on save is off until `format.format_on_save` is true. `:Mdw lint` publishes `rumdl` diagnostics. Set `format.lint` to false when another tool already owns those diagnostics.
+
+`<C-8>` cycles the current line, or the selected lines, through plain text, a bullet, an unchecked box, and a checked box. Lines inside a fenced code block stay as they are. `:Mdw image` saves a clipboard PNG under `assets/` next to the note and inserts a Markdown image. An existing file is not overwritten.
+
+`:Mdw preview` serves the current buffer, including unsaved text, at `127.0.0.1`. Note embeds stop when they loop. `render.enabled` turns on `render-markdown.nvim` once, when that plugin is installed. `lsp.enabled` attaches `markdown-oxide`. Set `lsp.rename` to keep rename on the language server so `:Mdw rename` does not also rewrite links.
+
 ## Try it
 
 ```sh
 nix run .#demo
 ```
 
-That starts Neovim with this plugin and `mini.pick` in a fresh copy of the fixture vault. Leader is space. `<leader>sn` searches notes, `<leader>sf` searches files, `<leader>sh` opens health, `<leader>ss` toggles the sidebar, and `<leader>sd` opens today's daily note. `gd` follows a link.
+That starts Neovim with this plugin and `mini.pick` in a fresh copy of the fixture vault. Leader is space. `<leader>sn` searches notes, `<leader>sf` searches files, `<leader>sh` opens health, `<leader>ss` toggles the sidebar, `<leader>sd` opens today's daily note, and `<leader>sp` toggles the preview. `gd` follows a link. `<C-8>` cycles a task.
 
 ## Tests
 

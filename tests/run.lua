@@ -761,6 +761,181 @@ fi
   vim.fn.confirm = saved
 end)
 
+add("tasks, images, formatting, and preview", function()
+  local dir = tmp()
+  local note = write(dir, "note.md", "task\n")
+  write(dir, "a.md", "See\n\n![[b]]\n")
+  write(dir, "b.md", "From B\n\n![[a]]\n")
+  local mdw = require("mdw")
+  local script = dir .. "/rumdl"
+  local handle = assert(io.open(script, "wb"))
+  handle:write([[
+#!/bin/sh
+mode="${MDW_RUMDL_MODE:-format}"
+if [ "$mode" = "fail" ]; then
+  echo 'rumdl failed' >&2
+  exit 1
+fi
+if [ "$mode" = "check" ]; then
+  printf '%s\n' '[{"line":2,"column":3,"rule":"MD018","message":"space","severity":"warning"}]'
+  exit 1
+fi
+printf '%s\n' '# Formatted'
+]])
+  handle:close()
+  vim.uv.fs_chmod(script, 493)
+  local clip = dir .. "/clip"
+  handle = assert(io.open(clip, "wb"))
+  handle:write("#!/bin/sh\nprintf 'png-bytes'\n")
+  handle:close()
+  vim.uv.fs_chmod(clip, 493)
+  local clip_fail = dir .. "/clip-fail"
+  handle = assert(io.open(clip_fail, "wb"))
+  handle:write("#!/bin/sh\necho 'no image' >&2\nexit 1\n")
+  handle:close()
+  vim.uv.fs_chmod(clip_fail, 493)
+
+  mdw.setup({
+    workspace = { root = dir },
+    format = { command = script, format_on_save = false },
+    edit = { clipboard = { clip } },
+  })
+  vim.cmd.edit(vim.fn.fnameescape(note))
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+    "  task",
+    "  - task",
+    "  - [ ] task",
+    "  - [x] task",
+    "```",
+    "- [ ] hidden",
+    "```",
+  })
+  local edit = require("mdw.edit")
+  edit.cycle_lines(0, 1, 4)
+  local cycled = vim.api.nvim_buf_get_lines(0, 0, 4, false)
+  same(cycled, { "  - task", "  - [ ] task", "  - [x] task", "  task" }, "task cycle keeps the indent")
+  edit.cycle_lines(0, 4, 1)
+  cycled = vim.api.nvim_buf_get_lines(0, 0, 4, false)
+  same(cycled, { "  - [ ] task", "  - [x] task", "  task", "  - task" }, "a reversed range cycles every selected line")
+  edit.cycle_lines(0, 6, 6)
+  eq(vim.api.nvim_buf_get_lines(0, 5, 6, false)[1], "- [ ] hidden", "fenced tasks stay unchanged")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "task" })
+  vim.api.nvim_win_set_cursor(0, { 1, 3 })
+  edit.cycle_insert()
+  eq(vim.api.nvim_get_current_line(), "- task", "insert cycle adds a bullet")
+  eq(vim.api.nvim_win_get_cursor(0)[2], 5, "insert cycle keeps the cursor on the text")
+
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "" })
+  local pasted = edit.paste_image()
+  truthy(pasted ~= nil, "clipboard image is saved")
+  eq(vim.api.nvim_get_current_line(), "![](assets/image.png)", "image link is inserted")
+  local first = assert(io.open(dir .. "/assets/image.png", "rb")):read("*a")
+  eq(first, "png-bytes", "image bytes are stored")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "" })
+  edit.paste_image()
+  truthy(vim.uv.fs_stat(dir .. "/assets/image-2.png") ~= nil, "a second paste uses a new name")
+  eq(assert(io.open(dir .. "/assets/image.png", "rb")):read("*a"), "png-bytes", "the first image is kept")
+  mdw.setup({
+    workspace = { root = dir },
+    format = { command = script },
+    edit = { clipboard = { clip_fail } },
+  })
+  vim.bo.modified = false
+  vim.cmd.edit(vim.fn.fnameescape(note))
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "keep" })
+  local failed = edit.paste_image()
+  eq(failed, nil, "a clipboard failure pastes nothing")
+  eq(vim.api.nvim_get_current_line(), "keep", "a clipboard failure leaves the line")
+
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "#Title" })
+  local formatted = require("mdw.format").format()
+  eq(formatted, true, "format succeeds")
+  eq(vim.api.nvim_get_current_line(), "# Formatted", "format replaces the buffer")
+  vim.env.MDW_RUMDL_MODE = "fail"
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "#Title" })
+  local broken = require("mdw.format").format()
+  eq(broken, nil, "format failure is reported")
+  eq(vim.api.nvim_get_current_line(), "#Title", "format failure leaves the buffer")
+  vim.env.MDW_RUMDL_MODE = nil
+  local formatter = require("mdw.format")
+  local saved_run = formatter.run
+  formatter.run = function()
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "edited during format" })
+    return { code = 0, stdout = "# Formatted\n", stderr = "" }
+  end
+  local stale = formatter.format()
+  eq(stale, nil, "a newer edit is not overwritten")
+  eq(vim.api.nvim_get_current_line(), "edited during format", "the newer text stays")
+  formatter.run = function()
+    return {
+      code = 1,
+      stdout = '[{"line":2,"column":3,"rule":"MD018","message":"space","severity":"warning"}]',
+      stderr = "",
+    }
+  end
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "# Title", "body" })
+  eq(formatter.lint(), true, "lint accepts rumdl json")
+  local diagnostics = vim.diagnostic.get(0, { namespace = vim.api.nvim_create_namespace("mdw-rumdl") })
+  eq(diagnostics[1].lnum, 1, "diagnostic line")
+  eq(diagnostics[1].col, 2, "diagnostic column")
+  formatter.run = saved_run
+  mdw.setup({
+    workspace = { root = dir },
+    format = { command = script, lint = false },
+  })
+  vim.bo.modified = false
+  vim.cmd.edit(vim.fn.fnameescape(note))
+  eq(require("mdw.format").lint(), true, "disabled lint still returns")
+  eq(#vim.diagnostic.get(0, { namespace = vim.api.nvim_create_namespace("mdw-rumdl") }), 0, "disabled lint clears diagnostics")
+
+  mdw.setup({ workspace = { root = dir }, lsp = { rename = true } })
+  local renamed = require("mdw.refactor").rename(dir, "note.md", "other.md")
+  eq(renamed, nil, "lsp-owned rename does not run")
+  truthy(vim.uv.fs_stat(note) ~= nil, "lsp-owned rename leaves the file")
+
+  mdw.setup({ workspace = { root = dir }, render = { enabled = true } })
+  local health = require("mdw.health").collect()
+  eq(health.render, true, "render option is reported")
+  eq(health.render_ready, false, "missing render-markdown is not marked ready")
+  truthy(pcall(require("mdw.health").check), "health still runs without render-markdown")
+
+  mdw.setup({ workspace = { root = dir } })
+  mdw.rebuild()
+  local preview = require("mdw.preview")
+  local page = preview.html(dir, "a.md")
+  truthy(page:find("From B", 1, true) ~= nil, "preview inlines an embed")
+  truthy(page:find("Embed cycle: a.md", 1, true) ~= nil, "preview stops an embed cycle")
+  vim.bo.modified = false
+  vim.cmd.edit(vim.fn.fnameescape(dir .. "/a.md"))
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "unsaved preview" })
+  local port = preview.start()
+  truthy(type(port) == "number", "preview binds a port")
+  local sock = vim.uv.new_tcp()
+  local received = {}
+  local done = false
+  sock:connect("127.0.0.1", port, function(err)
+    if err then
+      done = true
+      return
+    end
+    sock:write("GET / HTTP/1.0\r\nHost: localhost\r\n\r\n")
+    sock:read_start(function(_, chunk)
+      if chunk then
+        received[#received + 1] = chunk
+      else
+        done = true
+        sock:close()
+      end
+    end)
+  end)
+  vim.wait(2000, function()
+    return done
+  end)
+  local response = table.concat(received)
+  truthy(response:find("unsaved preview", 1, true) ~= nil, "preview serves the unsaved buffer")
+  preview.stop()
+end)
+
 local function finish()
   vim.cmd.cd(saved_cwd)
   for _, dir in ipairs(temps) do
