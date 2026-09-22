@@ -89,15 +89,16 @@ This starts a separate Neovim in a writable copy of a walkthrough vault. It does
 
 | Key | Action |
 | --- | --- |
-| `<leader>sn` | Search notes |
+| `<leader>ms` | Search notes |
 | `<leader>sf` | Search files |
-| `<leader>sh` | Health |
-| `<leader>ss` | Sidebar |
-| `<leader>sd` | Today's daily note |
+| `<leader>mh` | Health |
+| `<leader>mb` | Sidebar |
+| `<leader>md` | Today's daily note |
 | `gd` | Follow the link under the cursor |
 | `<CR>` in insert, `o` in normal | Continue a list item |
 | `>>` / `<<` | Nest or unnest |
-| `<leader>x` | Toggle a checkbox |
+| `<leader>mt` | Toggle a checkbox |
+| `<leader>q` | Quit |
 
 ## What it does
 

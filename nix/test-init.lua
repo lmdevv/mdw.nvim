@@ -84,12 +84,12 @@ require("mdw").setup({
       open = "o",
       nest = ">>",
       unnest = "<<",
-      check = "<leader>x",
+      check = "<leader>mt",
     },
   },
 })
 
-vim.keymap.set("n", "<leader>sn", function()
+vim.keymap.set("n", "<leader>ms", function()
   require("mdw.pick").search("")
 end, { desc = "Search notes" })
 
@@ -97,17 +97,21 @@ vim.keymap.set("n", "<leader>sf", function()
   Snacks.picker.files()
 end, { desc = "Search files" })
 
-vim.keymap.set("n", "<leader>sh", function()
+vim.keymap.set("n", "<leader>mh", function()
   vim.cmd("checkhealth mdw")
 end, { desc = "Health" })
 
-vim.keymap.set("n", "<leader>ss", function()
+vim.keymap.set("n", "<leader>mb", function()
   require("mdw.sidebar").toggle()
 end, { desc = "Sidebar" })
 
-vim.keymap.set("n", "<leader>sd", function()
+vim.keymap.set("n", "<leader>md", function()
   vim.cmd("Mdw daily")
 end, { desc = "Today's daily note" })
+
+vim.keymap.set("n", "<leader>q", function()
+  vim.cmd("qa")
+end, { desc = "Quit" })
 
 local miniclue = require("mini.clue")
 miniclue.setup({
@@ -116,7 +120,8 @@ miniclue.setup({
     { mode = "n", keys = "g" },
   },
   clues = {
-    { mode = "n", keys = "<Leader>s", desc = "+Show" },
+    { mode = "n", keys = "<Leader>s", desc = "+Search" },
+    { mode = "n", keys = "<Leader>m", desc = "+Mdw" },
     miniclue.gen_clues.g(),
   },
   window = {

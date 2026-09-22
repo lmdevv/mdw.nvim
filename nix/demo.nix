@@ -54,15 +54,16 @@ let
 
       | Keys | What happens |
       | --- | --- |
-      | space s n | Search notes |
+      | space m s | Search notes |
       | space s f | Search files, including title, alias, and tag |
-      | space s h | Health |
-      | space s s | Sidebar |
-      | space s d | Today's daily note |
+      | space m h | Health |
+      | space m b | Sidebar |
+      | space m d | Today's daily note |
       | g d | Follow the link under the cursor |
       | Enter in insert, o | Continue a list item |
       | >> and << | Nest or unnest |
-      | space x | Toggle a checkbox |
+      | space m t | Toggle a checkbox |
+      | space q | Quit |
 
       In the sidebar, o is the outline, b is backlinks, l is outgoing, Enter jumps, and q closes.
 
@@ -77,7 +78,7 @@ let
 
       # Search
 
-      Press space s n, or run `:mdw search`.
+      Press space m s, or run `:mdw search`.
 
       1. Search `Budget`. One row is [[money]], whose title is Budget. The file name does not contain Budget.
       2. Search `yearly`. That is an alias of the same note.
@@ -148,7 +149,7 @@ let
 
       # Sidebar
 
-      Press space s s. This window is the outline.
+      Press space m b. This window is the outline.
 
       Press b for backlinks. [[Links]] points here. Press l for outgoing links. Enter jumps. q closes.
 
@@ -180,7 +181,7 @@ let
       - first item
       - [ ] a task
 
-      From the end of "first item", press o, or Enter in insert mode. On the task, press space x. On a list line, press >> and then <<.
+      From the end of "first item", press o, or Enter in insert mode. On the task, press space m t. On a list line, press >> and then <<.
 
       The commands are `:mdw list continue`, `:mdw list nest`, `:mdw list unnest`, and `:mdw list check`.
 
@@ -201,9 +202,9 @@ let
 
       - `:mdw new tour/made` asks, then writes a note from the demo template.
       - `:mdw daily` opens today's note, or creates it.
-      - `:mdw dailies` searches only daily notes. Press space s d for today.
+      - `:mdw dailies` searches only daily notes. Press space m d for today.
       - `:mdw image` pastes a clipboard PNG into `assets/` and inserts a Markdown image.
-      - `:mdw health` reports the picker, rumdl, and markdown-oxide. Press space s h.
+      - `:mdw health` reports the picker, rumdl, and markdown-oxide. Press space m h.
       - `:mdw rename tour/moved.md` is last. Run it from [[money]]. It previews references, then updates them and moves the file.
 
       That is the tour.
