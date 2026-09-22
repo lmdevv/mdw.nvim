@@ -40,8 +40,10 @@ COMMANDS                                                            *mdw-command
                              backlinks, or outgoing.
 :mdw trouble {view}          Show that list in Trouble when installed.
 :mdw rename {path}           Move a note and update references.
-:mdw new {path}              Create a note.
+:mdw new {path}              Create a note. template= and backend=
+                             are optional.
 :mdw daily [...]             Open a daily note.
+:mdw dailies [query]         Search daily notes.
 :mdw property {key} {value}  Set one frontmatter property.
 :mdw aliases {names}         Replace aliases.
 :mdw tags {names}            Replace tags.
@@ -153,25 +155,37 @@ changes is left untouched.
 ==============================================================================
 CREATE                                                            *mdw-create*
 
-`:mdw new {path}` asks, then writes a note from `create.default_template`.
-`:mdw daily` opens today's note, creating it only when it is missing.
-`:mdw daily yesterday`, `tomorrow`, `prev`, `next`, or `YYYY-MM-DD` select
-another day. `prev` and `next` open an existing daily note and do not create
-one. The default name is `YYYY-MM-DD.md`. `daily.folder` and `daily.template`
-override that. Set `obsidian.import_daily` to read `.obsidian/daily-notes.json`
-when mdw's own daily options are unset. An imported format other than
-`YYYY-MM-DD` is reported and not guessed.
+`:mdw new {path}` asks, then writes a note. `:mdw daily` opens today's note,
+creating it only when it is missing. `:mdw daily yesterday`, `tomorrow`,
+`prev`, `next`, or `YYYY-MM-DD` select another day. `prev` and `next` open an
+existing daily note and do not create one. The default name is `YYYY-MM-DD.md`.
+`daily.folder`, `daily.format`, and `daily.template` override the vault.
+When `.obsidian/daily-notes.json` exists, its folder, format, and template
+fill any daily option left unset. Set `obsidian.import_daily` to false to
+ignore that file. An imported format other than `YYYY-MM-DD` is reported and
+not guessed.
+
+`:mdw dailies` opens the note picker with only those daily notes. A query uses
+the same matching as `:mdw search`.
 
 `:mdw property {key} {value}`, `:mdw aliases {names}`, and `:mdw tags {names}`
 edit frontmatter in place. Comments, unknown keys, and the body stay put.
 A multiline YAML value is left unchanged and reported.
 
-`create.backend` is `local` by default. `obsidian` runs
-`obsidian vault={workspace} create path={file}` without a shell. `:mdw obsidian`
-opens the current note in the app. Local commands keep working when the CLI
-is absent.
+`create.backend` stays `local` when the workspace contains `.obsidian`.
+`local` writes the file in Neovim. `obsidian` lists templates with
+`obsidian templates` and creates with
+`obsidian vault={workspace} create path={file}` without a shell.
+`:mdw new {path} backend=obsidian` and `:mdw daily backend=local` override
+that for one command. `:mdw obsidian` opens the current note in the app.
+Local commands keep working when the CLI is absent.
 
-Template text may contain `{{title}}`, `{{date}}`, and `{{time}}`. Any other
+Templates come from the folder in `.obsidian/templates.json`. Entries in
+`create.templates` add or replace a template by name. One available template
+is used on its own. Several templates open a picker, which includes a blank
+note. `:mdw new {path} template={name}` skips the picker.
+`create.default_template` also skips it. Template text may contain
+`{{title}}`, `{{date}}`, `{{time}}`, and `{{date:YYYY-MM-DD}}`. Any other
 `{{field}}` is copied through and reported.
 
 ==============================================================================
@@ -243,8 +257,9 @@ Optional tools. Setup still succeeds when one is missing:
 	markdown-oxide
 		LSP when `lsp.enabled` is true.
 	Obsidian CLI
-		Creation when `create.backend` is "obsidian", and
-		`:mdw obsidian`.
+		Template list and creation when `create.backend` is
+		"obsidian", and `:mdw obsidian`. Daily-note search and
+		local templates read `.obsidian` without the CLI.
 	Trouble
 		`:mdw trouble` only.
 

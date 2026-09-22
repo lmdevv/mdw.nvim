@@ -985,6 +985,196 @@ fi
   vim.fn.confirm = saved
 end)
 
+add("daily search and obsidian templates", function()
+  local dir = tmp()
+  local mdw = require("mdw")
+  local create = require("mdw.create")
+  local daily = require("mdw.daily")
+  local path, template, backend = create.parse_args('made note.md template="Trip plan" backend=obsidian')
+  eq(path, "made note.md", "path keeps spaces")
+  eq(template, "Trip plan", "quoted template is an argument")
+  eq(backend, "obsidian", "backend is an argument")
+  local leading, leading_template = create.parse_args("template=Trip made note.md")
+  eq(leading, "made note.md", "a leading template leaves the path")
+  eq(leading_template, "Trip", "a leading template is captured")
+
+  local stamp = os.time({ year = 2020, month = 1, day = 2, hour = 15, min = 4, sec = 5 })
+  local rendered, warnings = create.render("{{date:YYYY-MM-DD}} {{time:HH:mm}} {{date:dddd}} {{place}}", {
+    title = "T",
+    _stamp = stamp,
+  })
+  eq(rendered, "2020-01-02 15:04 {{date:dddd}} {{place}}", "known date tokens are filled")
+  eq(#warnings, 2, "unknown fields are reported")
+
+  write(dir, ".obsidian/daily-notes.json", '{ "folder": "Journal", "format": "YYYY-MM-DD", "template": "Trip" }\n')
+  write(dir, ".obsidian/templates.json", '{ "folder": "Templates" }\n')
+  write(dir, "Templates/Trip.md", "Hello {{title}} {{date:YYYY-MM-DD}}\n")
+  write(dir, "Journal/2020-01-02.md", "---\ntitle: Budget\n---\n")
+  write(dir, "Journal/2020-01-03.md", "# Other\n")
+  write(dir, "Journal/scratch.md", "# Budget\n")
+  write(dir, "Journal/nested/2020-01-05.md", "# Budget\n")
+  write(dir, "2020-01-04.md", "# Budget\n")
+  mdw.setup({ workspace = { root = dir } })
+  eq(require("mdw.config").get().create.backend, "local", "a vault does not switch the backend")
+  eq(require("mdw.config").get().obsidian.import_daily, true, "daily placement is read by default")
+  eq(daily.spec(dir).folder, "Journal", "daily folder comes from the vault")
+  local shown
+  local pick = require("mdw.pick")
+  local saved_show = pick.show
+  pick.show = function(title, items)
+    shown = { title = title, items = items }
+  end
+  local results, search_err = daily.search("Budget", { root = dir })
+  pick.show = saved_show
+  eq(search_err, nil, "daily search accepts the vault folder")
+  same(rels(results), { "Journal/2020-01-02.md" }, "daily search keeps dated notes in the daily folder")
+  eq(shown.title, "mdw daily notes", "daily search uses the note picker")
+  mdw.setup({
+    workspace = { root = dir },
+    obsidian = { import_daily = false },
+  })
+  eq(daily.spec(dir).folder, "", "import_daily false ignores the vault folder")
+  mdw.setup({
+    workspace = { root = dir },
+    daily = { folder = "Mine" },
+  })
+  eq(daily.spec(dir).folder, "Mine", "an explicit daily folder wins")
+
+  mdw.setup({ workspace = { root = dir } })
+  local ui = require("mdw.ui")
+  local saved_choose = ui.choose
+  local chose = 0
+  ui.choose = function()
+    chose = chose + 1
+  end
+  local created
+  create.start({
+    root = dir,
+    relpath = "from one.md",
+    title = "Paris",
+    when = stamp,
+    confirm = false,
+  }, function(written)
+    created = written
+  end)
+  ui.choose = saved_choose
+  eq(chose, 0, "one template skips the picker")
+  local one = assert(io.open(created, "rb")):read("*a")
+  eq(one, "Hello Paris 2020-01-02\n", "a vault template is rendered locally")
+
+  write(dir, "Templates/Stay.md", "Stay {{title}}\n")
+  mdw.setup({
+    workspace = { root = dir },
+    create = { templates = { Trip = "CONFIG {{title}}\n" } },
+  })
+  ui.choose = function(_, items)
+    for _, item in ipairs(items) do
+      if item.text == "Trip" then
+        item.choose()
+        return
+      end
+    end
+    fail("picker did not offer Trip")
+  end
+  local picked
+  create.start({ root = dir, relpath = "from picker.md", title = "Paris", confirm = false }, function(written)
+    picked = written
+  end)
+  local picked_body = assert(io.open(picked, "rb")):read("*a")
+  eq(picked_body, "CONFIG Paris\n", "a configured template replaces the file")
+  ui.choose = function(_, items)
+    eq(items[#items].text, "(blank)", "the picker offers a blank note")
+    items[#items].choose()
+  end
+  local blank
+  create.start({ root = dir, relpath = "from blank.md", confirm = false }, function(written)
+    blank = written
+  end)
+  eq(assert(io.open(blank, "rb")):read("*a"), "", "blank skips the template")
+  ui.choose = saved_choose
+
+  local log = dir .. "/obsidian.log"
+  local script = dir .. "/obsidian"
+  local handle = assert(io.open(script, "wb"))
+  handle:write(string.format([=[
+#!/bin/sh
+printf '%%s\n' "$@" >> %q
+for arg in "$@"; do
+  if [ "$arg" = "templates" ]; then
+    printf '%%s\n' Beta Alpha
+    exit 0
+  fi
+done
+vault=""
+path=""
+for arg in "$@"; do
+  case "$arg" in
+    vault=*) vault=${arg#vault=} ;;
+    path=*) path=${arg#path=} ;;
+  esac
+done
+if [ -n "$vault" ] && [ -n "$path" ]; then
+  mkdir -p "$(dirname "$vault/$path")"
+  printf 'from cli\n' > "$vault/$path"
+fi
+]=], log))
+  handle:close()
+  vim.uv.fs_chmod(script, 493)
+  mdw.setup({
+    workspace = { root = dir },
+    obsidian = { command = script },
+  })
+  os.remove(log)
+  local local_names = require("mdw.templates").names(dir, "local")
+  same(local_names, { "Stay", "Trip" }, "local templates come from the vault folder")
+  eq(vim.uv.fs_stat(log), nil, "the local backend does not ask the CLI for templates")
+  mdw.setup({
+    workspace = { root = dir },
+    create = { backend = "obsidian" },
+    obsidian = { command = script },
+  })
+  ui.choose = function(_, items)
+    same({ items[1].text, items[2].text }, { "Alpha", "Beta" }, "CLI template names are sorted")
+    items[1].choose()
+  end
+  local cli
+  create.start({ root = dir, relpath = "from cli choice.md", confirm = false }, function(written)
+    cli = written
+  end)
+  ui.choose = saved_choose
+  truthy(cli ~= nil, "the obsidian backend creates from the chosen template")
+  local recorded = assert(io.open(log, "rb")):read("*a")
+  truthy(recorded:find("templates\n", 1, true) ~= nil, "template names come from the CLI")
+  truthy(recorded:find("template=Alpha", 1, true) ~= nil, "the chosen template is passed to create")
+  eq(assert(io.open(cli, "rb")):read("*a"), "from cli\n", "the CLI writes the obsidian note")
+  mdw.setup({
+    workspace = { root = dir },
+    obsidian = { command = script },
+  })
+  local adhoc
+  create.start({
+    root = dir,
+    relpath = "adhoc.md",
+    template = "Travel",
+    backend = "obsidian",
+    confirm = false,
+  }, function(written)
+    adhoc = written
+  end)
+  eq(require("mdw.config").get().create.backend, "local", "one command does not change the backend")
+  truthy(adhoc ~= nil, "backend=obsidian creates through the CLI")
+  mdw.setup({
+    workspace = { root = dir },
+    create = { backend = "obsidian" },
+    obsidian = { command = dir .. "/missing-obsidian" },
+  })
+  local missing
+  create.start({ root = dir, relpath = "missing cli.md", confirm = false }, function(_, err)
+    missing = err
+  end)
+  truthy(missing ~= nil and missing:find("not found", 1, true) ~= nil, "a missing CLI is reported")
+end)
+
 add("lists, images, and formatting", function()
   local dir = tmp()
   local note = write(dir, "note.md", "task\n")

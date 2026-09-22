@@ -623,6 +623,12 @@ function M.search(query)
   return results
 end
 
+function M.search_notes(title, notes, query)
+  local results = search.query_notes(notes, query or "")
+  M.show(title, results, M.choose, true)
+  return results
+end
+
 function M.available()
   return M.mini_available()
 end

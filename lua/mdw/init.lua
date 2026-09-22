@@ -21,6 +21,7 @@ local COMMANDS = {
   "move",
   "new",
   "daily",
+  "dailies",
   "property",
   "aliases",
   "tags",
@@ -41,8 +42,9 @@ local USAGE = table.concat({
   "  :mdw outline | backlinks | outgoing",
   "  :mdw qf [outline|backlinks|outgoing]",
   "  :mdw rename {path}",
-  "  :mdw new {path}",
+  "  :mdw new {path} [template=name] [backend=local|obsidian]",
   "  :mdw daily [today|yesterday|tomorrow|prev|next|YYYY-MM-DD]",
+  "  :mdw dailies [query]",
   "  :mdw property {key} {value}",
   "  :mdw aliases {names}",
   "  :mdw tags {names}",
@@ -232,16 +234,28 @@ local function dispatch(args, line1, line2)
       vim.notify("mdw: " .. (err or "rename failed"), vim.log.levels.ERROR)
     end
   elseif sub == "new" then
-    local written, err = require("mdw.create").create({ relpath = rest, insert = false })
-    if not written then
-      vim.notify("mdw: " .. (err or "could not create the note"), vim.log.levels.ERROR)
-      return
-    end
-    vim.cmd.edit(vim.fn.fnameescape(written))
+    local relpath, template, backend = require("mdw.create").parse_args(rest)
+    require("mdw.create").start({
+      relpath = relpath,
+      template = template,
+      backend = backend,
+    }, function(written, err)
+      if not written then
+        vim.notify("mdw: " .. (err or "could not create the note"), vim.log.levels.ERROR)
+        return
+      end
+      vim.cmd.edit(vim.fn.fnameescape(written))
+    end)
   elseif sub == "daily" then
-    local path, err = require("mdw.daily").open(rest)
+    local when, template, backend = require("mdw.create").parse_args(rest)
+    local path, err = require("mdw.daily").open(when, { template = template, backend = backend })
     if not path then
       vim.notify("mdw: " .. (err or "could not open the daily note"), vim.log.levels.ERROR)
+    end
+  elseif sub == "dailies" then
+    local results, err = require("mdw.daily").search(rest)
+    if not results then
+      vim.notify("mdw: " .. (err or "could not search daily notes"), vim.log.levels.ERROR)
     end
   elseif sub == "property" then
     local key, value = rest:match("^(%S+)%s*(.*)$")

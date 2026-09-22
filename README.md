@@ -39,8 +39,9 @@ Install mini.pick, Snacks, or Telescope before enabling `search.enrich_files` if
 | `:mdw qf [view]` | Fill the quickfix with `outline`, `backlinks`, or `outgoing` |
 | `:mdw trouble [view]` | Show that list in Trouble when it is installed |
 | `:mdw rename {path}` | Move a note and update references |
-| `:mdw new {path}` | Create a note |
+| `:mdw new {path}` | Create a note. Optional `template=` and `backend=` |
 | `:mdw daily [...]` | Open today's note, or `yesterday`, `tomorrow`, `prev`, `next`, or `YYYY-MM-DD` |
+| `:mdw dailies [query]` | Search only daily notes |
 | `:mdw property {key} {value}` | Set one frontmatter property |
 | `:mdw aliases {names}` | Replace aliases |
 | `:mdw tags {names}` | Replace tags |
@@ -102,11 +103,15 @@ With `search.enrich_files = true`, file search in mini.pick, Snacks, and Telesco
 
 ## Notes and daily notes
 
-`:mdw new path/note.md` confirms the path and creates it from `create.default_template`. `:mdw daily` opens today's `YYYY-MM-DD` note, or creates it when that file is missing. A second call opens the same file and does not apply the template again. `:mdw daily prev` and `:mdw daily next` move among daily notes that already exist.
+`:mdw new path/note.md` confirms the path and creates the note. `:mdw daily` opens today's `YYYY-MM-DD` note, or creates it when that file is missing. A second call opens the same file and does not apply the template again. `:mdw daily prev` and `:mdw daily next` move among daily notes that already exist. `:mdw dailies` opens the note picker with only daily notes, and a query matches them the same way as `:mdw search`.
+
+Daily placement comes from `.obsidian/daily-notes.json` when `daily.folder`, `daily.format`, or `daily.template` is unset. Set `obsidian.import_daily` to false to ignore that file. A format other than `YYYY-MM-DD` is reported.
+
+Templates come from the folder named in `.obsidian/templates.json`. `create.templates` adds or replaces one by name. A single template is used automatically. Several templates open a picker, including a blank note. `:mdw new path/note.md template=Trip` chooses one, and `create.default_template` does the same without a picker. `{{title}}`, `{{date}}`, `{{time}}`, and `{{date:YYYY-MM-DD}}` are filled in. Other `{{fields}}` are left in place and reported.
 
 `:mdw tags work home`, `:mdw aliases yearly plan`, and `:mdw property title Budget` change one frontmatter field and leave the rest of the file alone.
 
-Set `create.backend` to `obsidian` to create through the official CLI. The command is `obsidian vault=<workspace> create path=<file>`, passed as arguments. `:mdw obsidian` opens the current note in the app.
+A `.obsidian` directory does not switch the backend. `create.backend` stays `local` and writes the file in Neovim. Set it to `obsidian` to list templates with `obsidian templates` and create with `obsidian vault=<workspace> create path=<file> template=<name>`, passed as arguments. `:mdw new path/note.md backend=obsidian` uses the CLI for that one note. `:mdw obsidian` opens the current note in the app.
 
 ## Editing
 
@@ -149,7 +154,7 @@ Everything below is optional. Setup still succeeds when the tool is missing:
 | wl-paste or xclip | `:mdw image` on Linux. Set `edit.clipboard` to another command list on other systems |
 | render-markdown.nvim | In-buffer rendering when `render.enabled` is true |
 | markdown-oxide | LSP when `lsp.enabled` is true |
-| Obsidian CLI | Note creation when `create.backend` is `obsidian`, and `:mdw obsidian` |
+| Obsidian CLI | Template list and note creation when `create.backend` is `obsidian`, and `:mdw obsidian`. Daily-note search and local templates read `.obsidian` without it |
 | Trouble | `:mdw trouble` only |
 
 `:mdw image` looks for `wl-paste` and then `xclip`. That default is the Linux clipboard. Other systems pass their own reader through `edit.clipboard`, for example `{ "pngpaste" }` on macOS.

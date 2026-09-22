@@ -57,4 +57,23 @@ function M.open(root, relpath)
   return M.run(root, { "open", "path=" .. relpath })
 end
 
+function M.templates(root)
+  local result, err = M.run(root, { "templates" })
+  if not result then
+    return nil, err
+  end
+  local names = {}
+  local seen = {}
+  for line in (result.stdout or ""):gmatch("[^\r\n]+") do
+    line = vim.trim(line):gsub("^[-*]%s+", "")
+    line = line:gsub("%.md$", ""):gsub("%.markdown$", "")
+    if line ~= "" and not seen[line] then
+      seen[line] = true
+      names[#names + 1] = line
+    end
+  end
+  table.sort(names)
+  return names
+end
+
 return M

@@ -29,7 +29,7 @@ local defaults = {
   obsidian = {
     enabled = false,
     command = "obsidian",
-    import_daily = false,
+    import_daily = true,
   },
   format = {
     enabled = true,
@@ -234,7 +234,7 @@ function M.apply(opts)
     obsidian = {
       enabled = obsidian.enabled == true,
       command = obsidian.command or "obsidian",
-      import_daily = obsidian.import_daily == true,
+      import_daily = obsidian.import_daily ~= false,
     },
     format = {
       enabled = format.enabled ~= false,

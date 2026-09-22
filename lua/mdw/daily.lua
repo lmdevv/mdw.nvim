@@ -161,6 +161,37 @@ function M.neighbor(root, spec, when, step)
   return pick .. ".md"
 end
 
+function M.is_daily(spec, relpath)
+  if spec.folder ~= "" then
+    local prefix = spec.folder .. "/"
+    if relpath:sub(1, #prefix) ~= prefix then
+      return false
+    end
+    if relpath:sub(#prefix + 1):find("/", 1, true) then
+      return false
+    end
+  elseif relpath:find("/", 1, true) then
+    return false
+  end
+  return vim.fs.basename(relpath):match("^%d%d%d%d%-%d%d%-%d%d%.md$") ~= nil
+end
+
+function M.search(query, opts)
+  opts = opts or {}
+  local root = opts.root or workspace.resolve(0)
+  local spec, spec_err = M.spec(root)
+  if not spec then
+    return nil, spec_err
+  end
+  local notes = {}
+  for _, note in ipairs(require("mdw.index").list(root)) do
+    if M.is_daily(spec, note.relpath) then
+      notes[#notes + 1] = note
+    end
+  end
+  return require("mdw.pick").search_notes("mdw daily notes", notes, query or "")
+end
+
 function M.open(when, opts)
   opts = opts or {}
   local root = opts.root or workspace.resolve(0)
@@ -188,11 +219,15 @@ function M.open(when, opts)
     return path
   end
   local title = os.date(spec.lua_format, stamp)
+  local template = spec.template
+  if opts.template ~= nil and opts.template ~= "" then
+    template = opts.template
+  end
   local written, err = create.create({
     root = root,
     relpath = relpath,
     title = title,
-    template = spec.template,
+    template = template,
     when = stamp,
     confirm = opts.confirm ~= false,
     backend = opts.backend,
