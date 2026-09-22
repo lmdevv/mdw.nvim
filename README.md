@@ -91,7 +91,23 @@ Set `create.backend` to `obsidian` to create through the official CLI. The comma
 
 `:Mdw format` sends the buffer to `rumdl` and replaces it only when that command succeeds. The buffer is left unchanged if `rumdl` fails or the text changed while it was running. Formatting on save is off until `format.format_on_save` is true. `:Mdw lint` publishes `rumdl` diagnostics. Set `format.lint` to false when another tool already owns those diagnostics.
 
-`<C-8>` cycles the current line, or the selected lines, through plain text, a bullet, an unchecked box, and a checked box. Lines inside a fenced code block stay as they are. `:Mdw image` saves a clipboard PNG under `assets/` next to the note and inserts a Markdown image. An existing file is not overwritten.
+`:Mdw list continue` opens the next item. On an empty item it unnests one level, and a top-level empty item becomes a blank line. A checkbox continues unchecked. A numbered list renumbers the items that follow. `:Mdw list nest` and `:Mdw list unnest` change the indent of the current item or the selected items and keep the marker (`-`, `*`, `+`, or the number). `:Mdw list check` toggles a checkbox, or adds an empty one on a list item that does not have one. Lines inside a fenced code block stay as they are. The plugin does not bind keys for these. Off a list item, a mapped `>>` or `<<` still indents the line, and a mapped `o` or Enter still inserts a normal line.
+
+```lua
+require("mdw").setup({
+  lists = {
+    maps = {
+      continue = "<CR>", -- insert mode
+      open = "o", -- normal mode
+      nest = ">>",
+      unnest = "<<",
+      check = "<leader>x",
+    },
+  },
+})
+```
+
+`:Mdw image` saves a clipboard PNG under `assets/` next to the note and inserts a Markdown image. An existing file is not overwritten.
 
 `render.enabled` turns on `render-markdown.nvim` once, when that plugin is installed. `lsp.enabled` attaches `markdown-oxide`. Set `lsp.rename` to keep rename on the language server so `:Mdw rename` does not also rewrite links.
 
@@ -103,7 +119,7 @@ A browser preview is not part of this release. That is later work, described in 
 nix run .#demo
 ```
 
-That starts Neovim with this plugin and `mini.pick` in a fresh copy of the fixture vault. Leader is space. `<leader>sn` searches notes, `<leader>sf` searches files, `<leader>sh` opens health, `<leader>ss` toggles the sidebar, and `<leader>sd` opens today's daily note. `gd` follows a link. `<C-8>` cycles a task.
+That starts Neovim with this plugin and `mini.pick` in a fresh copy of the fixture vault. Leader is space. `<leader>sn` searches notes, `<leader>sf` searches files, `<leader>sh` opens health, `<leader>ss` toggles the sidebar, and `<leader>sd` opens today's daily note. `gd` follows a link. In a note, `<CR>` in insert mode and `o` in normal mode continue a list, `>>` and `<<` nest and unnest, and `<leader>x` toggles a checkbox. Those keys are demo mappings, not plugin defaults.
 
 ## Tests
 

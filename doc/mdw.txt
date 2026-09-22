@@ -156,14 +156,32 @@ markdown-oxide.
 ==============================================================================
 EDITING                                                            *mdw-editing*
 
-:Mdw format    Format the buffer with rumdl
-:Mdw lint      Show rumdl diagnostics
-:Mdw image     Paste a clipboard image
-<C-8>          Cycle plain text, bullet, unchecked, checked
+:Mdw format              Format the buffer with rumdl
+:Mdw lint                Show rumdl diagnostics
+:Mdw image               Paste a clipboard image
+:Mdw list continue       Continue the list item
+:Mdw list nest           Indent the item one level
+:Mdw list unnest         Outdent the item one level
+:Mdw list check          Toggle the checkbox
 
 Format on save is off by default. A failed format leaves the buffer unchanged.
-Fenced code is not cycled. Images are written beside the note in `assets/`
-and do not replace an existing file.
+Images are written beside the note in `assets/` and do not replace an
+existing file.
+
+List commands work on `-`, `*`, `+`, and numbered items. `continue` from the
+end of an item inserts the next item. From the middle of the text it splits
+there. An empty item unnests once. A top-level empty item becomes a blank
+line. A continued checkbox is unchecked, and a numbered list renumbers the
+following siblings. `nest` and `unnest` keep the marker. A numbered child
+starts at 1, and unnesting it rejoins the parent numbering. `check` switches
+`[ ]` and `[x]`. On a list item with no box it adds `[ ]`. A range, including
+a reversed visual selection passed as a command range, covers each selected
+line. Fenced lines are left unchanged.
+
+mdw does not map these commands. Set `lists.maps` to bind `continue` in
+insert mode, `open` in normal mode, and `nest`, `unnest`, and `check` in
+normal and visual mode. `lists.level` is the number of spaces in one nesting
+level. The default is 2. A tab-indented item nests by one tab.
 
 `render.enabled` configures `render-markdown.nvim` once when it is installed.
 `lsp.enabled` attaches `markdown-oxide`. `lsp.rename` gives rename to that

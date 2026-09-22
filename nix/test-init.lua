@@ -16,6 +16,15 @@ require("mdw").setup({
     folder = "daily",
     template = "note",
   },
+  lists = {
+    maps = {
+      continue = "<CR>",
+      open = "o",
+      nest = ">>",
+      unnest = "<<",
+      check = "<leader>x",
+    },
+  },
 })
 
 vim.keymap.set("n", "<leader>sn", function()

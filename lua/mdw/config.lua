@@ -37,9 +37,18 @@ local defaults = {
     lint = true,
   },
   edit = {
-    cycle = "<C-8>",
     attachments = "assets",
     clipboard = nil,
+  },
+  lists = {
+    level = 2,
+    maps = {
+      continue = nil,
+      open = nil,
+      nest = nil,
+      unnest = nil,
+      check = nil,
+    },
   },
   render = {
     enabled = false,
@@ -147,9 +156,6 @@ function M.apply(opts)
   if format.lint ~= nil and type(format.lint) ~= "boolean" then
     error("mdw: format.lint must be a boolean")
   end
-  if edit.cycle ~= nil and edit.cycle ~= false and type(edit.cycle) ~= "string" then
-    error("mdw: edit.cycle must be a string or false")
-  end
   if edit.attachments ~= nil and type(edit.attachments) ~= "string" then
     error("mdw: edit.attachments must be a string")
   end
@@ -170,6 +176,24 @@ function M.apply(opts)
   end
   if lsp.rename ~= nil and type(lsp.rename) ~= "boolean" then
     error("mdw: lsp.rename must be a boolean")
+  end
+  local lists = opts.lists or {}
+  local list_maps = lists.maps or {}
+  if lists.level ~= nil and (type(lists.level) ~= "number" or lists.level < 1 or lists.level % 1 ~= 0) then
+    error("mdw: lists.level must be a positive integer")
+  end
+  if lists.maps ~= nil and type(lists.maps) ~= "table" then
+    error("mdw: lists.maps must be a table")
+  end
+  local function map_key(name)
+    local value = list_maps[name]
+    if value ~= nil and value ~= false and type(value) ~= "string" then
+      error("mdw: lists.maps." .. name .. " must be a string")
+    end
+    if value == false or value == "" then
+      return nil
+    end
+    return value
   end
   local templates = {}
   for name, body in pairs(create.templates or {}) do
@@ -213,9 +237,18 @@ function M.apply(opts)
       lint = format.lint ~= false,
     },
     edit = {
-      cycle = edit.cycle == nil and "<C-8>" or edit.cycle,
       attachments = edit.attachments or "assets",
       clipboard = edit.clipboard,
+    },
+    lists = {
+      level = lists.level or 2,
+      maps = {
+        continue = map_key("continue"),
+        open = map_key("open"),
+        nest = map_key("nest"),
+        unnest = map_key("unnest"),
+        check = map_key("check"),
+      },
     },
     render = {
       enabled = render.enabled == true,

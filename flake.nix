@@ -206,7 +206,11 @@
         :Mdw tags {tags}
         :Mdw aliases {names}
         :Mdw property {key} {value}
-        <C-8>       cycle a task
+        :Mdw list continue
+        :Mdw list nest
+        :Mdw list unnest
+        :Mdw list check
+        In a note: <CR> and o continue, >> and << nest, <leader>x checks
         :Mdw format
         :Mdw lint
         :Mdw image

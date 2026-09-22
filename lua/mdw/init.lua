@@ -28,6 +28,7 @@ local COMMANDS = {
   "format",
   "lint",
   "image",
+  "list",
 }
 
 local USAGE = table.concat({
@@ -49,6 +50,7 @@ local USAGE = table.concat({
   "  :Mdw format",
   "  :Mdw lint",
   "  :Mdw image",
+  "  :Mdw list continue | nest | unnest | check",
 }, "\n")
 
 local function map_follow(bufnr)
@@ -78,7 +80,7 @@ local function on_buffer(event)
     or "auto"
   index.sync_buffer(event.buf, mode)
   map_follow(event.buf)
-  require("mdw.edit").map(event.buf)
+  require("mdw.lists").map(event.buf)
   require("mdw.lsp").attach(event.buf)
   require("mdw.sidebar").on_note(event.buf)
 end
@@ -102,8 +104,19 @@ local function on_write(event)
   end
 end
 
+local LIST_ACTIONS = { "continue", "nest", "unnest", "check" }
+
 local function complete(arglead, cmdline)
   local before = cmdline:sub(1, #cmdline - #arglead)
+  if before:match("^%s*Mdw%s+list%s+$") then
+    local matches = {}
+    for _, name in ipairs(LIST_ACTIONS) do
+      if vim.startswith(name, arglead) then
+        matches[#matches + 1] = name
+      end
+    end
+    return matches
+  end
   if before:match("^%s*Mdw%s+%S") then
     return {}
   end
@@ -174,7 +187,7 @@ local function edit_meta(key, value)
   index.sync_buffer(vim.api.nvim_get_current_buf(), "buffer")
 end
 
-local function dispatch(args)
+local function dispatch(args, line1, line2)
   local sub, rest = args:match("^(%S+)%s*(.*)$")
   if sub == nil then
     vim.notify(USAGE, vim.log.levels.INFO)
@@ -266,6 +279,20 @@ local function dispatch(args)
     if not path then
       vim.notify("mdw: " .. (err or "could not paste an image"), vim.log.levels.ERROR)
     end
+  elseif sub == "list" then
+    local action = vim.trim(rest or "")
+    local lists = require("mdw.lists")
+    if action == "continue" then
+      lists.continue()
+    elseif action == "nest" then
+      lists.nest(line1, line2)
+    elseif action == "unnest" then
+      lists.unnest(line1, line2)
+    elseif action == "check" then
+      lists.check(line1, line2)
+    else
+      vim.notify("mdw: list needs continue, nest, unnest, or check", vim.log.levels.ERROR)
+    end
   else
     vim.notify("Unknown mdw command: " .. sub .. "\n" .. USAGE, vim.log.levels.ERROR)
   end
@@ -289,9 +316,10 @@ function M.setup(opts)
   })
   pcall(vim.api.nvim_del_user_command, "Mdw")
   vim.api.nvim_create_user_command("Mdw", function(cmd)
-    dispatch(vim.trim(cmd.args or ""))
+    dispatch(vim.trim(cmd.args or ""), cmd.line1, cmd.line2)
   end, {
     nargs = "*",
+    range = true,
     complete = complete,
     desc = "Markdown workspace notes",
   })

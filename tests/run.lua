@@ -761,7 +761,7 @@ fi
   vim.fn.confirm = saved
 end)
 
-add("tasks, images, and formatting", function()
+add("lists, images, and formatting", function()
   local dir = tmp()
   local note = write(dir, "note.md", "task\n")
   local mdw = require("mdw")
@@ -799,30 +799,65 @@ printf '%s\n' '# Formatted'
     edit = { clipboard = { clip } },
   })
   vim.cmd.edit(vim.fn.fnameescape(note))
-  vim.api.nvim_buf_set_lines(0, 0, -1, false, {
-    "  task",
-    "  - task",
-    "  - [ ] task",
-    "  - [x] task",
-    "```",
-    "- [ ] hidden",
-    "```",
-  })
-  local edit = require("mdw.edit")
-  edit.cycle_lines(0, 1, 4)
-  local cycled = vim.api.nvim_buf_get_lines(0, 0, 4, false)
-  same(cycled, { "  - task", "  - [ ] task", "  - [x] task", "  task" }, "task cycle keeps the indent")
-  edit.cycle_lines(0, 4, 1)
-  cycled = vim.api.nvim_buf_get_lines(0, 0, 4, false)
-  same(cycled, { "  - [ ] task", "  - [x] task", "  task", "  - task" }, "a reversed range cycles every selected line")
-  edit.cycle_lines(0, 6, 6)
-  eq(vim.api.nvim_buf_get_lines(0, 5, 6, false)[1], "- [ ] hidden", "fenced tasks stay unchanged")
-  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "task" })
-  vim.api.nvim_win_set_cursor(0, { 1, 3 })
-  edit.cycle_insert()
-  eq(vim.api.nvim_get_current_line(), "- task", "insert cycle adds a bullet")
-  eq(vim.api.nvim_win_get_cursor(0)[2], 5, "insert cycle keeps the cursor on the text")
+  eq(vim.fn.maparg("<C-8>", "n"), "", "list keys are unset until configured")
+  local lists = require("mdw.lists")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- alpha" })
+  lists.continue({ row = 1, col = 7, insert = true })
+  same(vim.api.nvim_buf_get_lines(0, 0, 2, false), { "- alpha", "- " }, "enter continues a bullet")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- [x] done" })
+  lists.continue({ row = 1, col = 10, insert = true })
+  eq(vim.api.nvim_buf_get_lines(0, 1, 2, false)[1], "- [ ] ", "a continued checkbox is unchecked")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "1. one", "2. two" })
+  lists.continue({ row = 1, col = 6, insert = true })
+  same(vim.api.nvim_buf_get_lines(0, 0, 3, false), { "1. one", "2. ", "3. two" }, "enter renumbers the following item")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- parent", "  - child" })
+  lists.continue({ row = 2, col = 10, insert = true })
+  eq(vim.api.nvim_buf_get_lines(0, 2, 3, false)[1], "  - ", "a continued nested item stays nested")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- parent", "  - " })
+  vim.api.nvim_win_set_cursor(0, { 2, 4 })
+  lists.continue({ row = 2, col = 4, insert = true })
+  eq(vim.api.nvim_buf_get_lines(0, 1, 2, false)[1], "- ", "an empty nested item unnests")
+  lists.continue({ row = 2, col = 2, insert = true })
+  eq(vim.api.nvim_buf_get_lines(0, 1, 2, false)[1], "", "an empty top-level item becomes a blank line")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- hello" })
+  lists.continue({ row = 1, col = 5, insert = true })
+  same(vim.api.nvim_buf_get_lines(0, 0, 2, false), { "- hel", "- lo" }, "enter splits the item at the cursor")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "1. a", "2. b", "- c", "* d", "+ e", "plain" })
+  lists.nest(2, 2)
+  same(vim.api.nvim_buf_get_lines(0, 0, 2, false), { "1. a", "  1. b" }, "nesting an ordered item starts a child at 1")
+  lists.unnest(2, 2)
+  same(vim.api.nvim_buf_get_lines(0, 0, 2, false), { "1. a", "2. b" }, "unnesting rejoins the numbered list")
+  lists.unnest(1, 1)
+  eq(vim.api.nvim_buf_get_lines(0, 0, 1, false)[1], "1. a", "a top-level item does not lose its marker")
+  lists.nest(3, 5)
+  same(vim.api.nvim_buf_get_lines(0, 2, 5, false), { "  - c", "  * d", "  + e" }, "nest keeps the bullet marker")
+  vim.api.nvim_win_set_cursor(0, { 6, 0 })
+  lists.check(6, 3)
+  same(vim.api.nvim_buf_get_lines(0, 2, 6, false), {
+    "  - [ ] c",
+    "  * [ ] d",
+    "  + [ ] e",
+    "plain",
+  }, "check adds a box on list items and leaves prose")
+  lists.check(3, 5)
+  same(vim.api.nvim_buf_get_lines(0, 2, 5, false), {
+    "  - [x] c",
+    "  * [x] d",
+    "  + [x] e",
+  }, "check marks an empty box")
+  lists.check(4, 4)
+  eq(vim.api.nvim_buf_get_lines(0, 3, 4, false)[1], "  * [ ] d", "check clears a marked box")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "```", "- [ ] hidden", "```" })
+  lists.check(2, 2)
+  lists.nest(2, 2)
+  eq(vim.api.nvim_buf_get_lines(0, 1, 2, false)[1], "- [ ] hidden", "fenced list text stays unchanged")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- a", "- [X] b" })
+  vim.api.nvim_win_set_cursor(0, { 1, 2 })
+  vim.cmd("1,2Mdw list check")
+  same(vim.api.nvim_buf_get_lines(0, 0, 2, false), { "- [ ] a", "- [ ] b" }, "the list command toggles a range")
+  eq(vim.api.nvim_win_get_cursor(0)[2], 6, "the cursor stays on the item text")
 
+  local edit = require("mdw.edit")
   vim.api.nvim_buf_set_lines(0, 0, -1, false, { "" })
   local pasted = edit.paste_image()
   truthy(pasted ~= nil, "clipboard image is saved")
