@@ -74,7 +74,7 @@ With Nix, on x86_64-linux, aarch64-linux, or aarch64-darwin:
 nix run github:lmdevv/mdw.nvim
 ```
 
-This starts a separate Neovim with mdw and mini.pick in a writable copy of a small vault. It does not change your own configuration. Leader is space. These keys exist only in the demo:
+This starts a separate Neovim in a writable copy of a small vault. It does not change your own configuration. The start screen lists the notes to open and the commands to run. The demo enables mini.pick, a color scheme, rumdl, markdown-oxide, and render-markdown. Those are not turned on by installing mdw. Leader is space. These keys exist only in the demo:
 
 | Key | Action |
 | --- | --- |

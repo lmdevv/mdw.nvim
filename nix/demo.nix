@@ -9,13 +9,24 @@ let
   tools = [
     pkgs.git
   ]
-  ++ lib.optional (pkgs ? rumdl) pkgs.rumdl;
+  ++ lib.optional (pkgs ? rumdl) pkgs.rumdl
+  ++ lib.optional (pkgs ? markdown-oxide) pkgs.markdown-oxide;
 
   nvim = pkgs.wrapNeovimUnstable pkgs.neovim-unwrapped {
     extraName = "-mdw-test";
     plugins = [
       plugin
       pkgs.vimPlugins.mini-pick
+      pkgs.vimPlugins.mini-starter
+      pkgs.vimPlugins.mini-statusline
+      pkgs.vimPlugins.mini-icons
+      pkgs.vimPlugins.catppuccin-nvim
+      pkgs.vimPlugins.render-markdown-nvim
+      (pkgs.vimPlugins.nvim-treesitter.withPlugins (parsers: [
+        parsers.markdown
+        parsers.markdown_inline
+        parsers.yaml
+      ]))
     ];
     luaRcContent = builtins.readFile ./test-init.lua;
     wrapperArgs = [
@@ -152,42 +163,25 @@ let
 
   howto = ''
     This Neovim does not load your user config.
-    The vault is a fresh copy under the current directory's parent.
+    The start screen lists where to go and which commands to run.
     Open this file with :e ../HOWTO.txt
 
-    Leader is space.
+    Leader is space. These keys exist only in the demo.
     <leader>sn  note search
-    <leader>sf  ordinary mini.pick files
-    <leader>sh  mdw health
+    <leader>sf  file search, including title, alias, and tag
+    <leader>sh  health
     <leader>ss  sidebar
     <leader>sd  today's daily note
     gd          follow the link under the cursor
 
     In the sidebar: o outline, b backlinks, l outgoing, Enter jump, q close.
+    In a note: <CR> and o continue a list, >> and << nest, <leader>x checks.
 
-    :mdw search [query]
-    :mdw index
-    :mdw health
-    :mdw follow
-    :mdw sidebar
-    :mdw backlinks
-    :mdw outgoing
-    :mdw outline
-    :mdw qf backlinks
-    :mdw rename {path}
-    :mdw new {path}
-    :mdw daily [today|yesterday|tomorrow|prev|next|YYYY-MM-DD]
-    :mdw tags {tags}
-    :mdw aliases {names}
-    :mdw property {key} {value}
-    :mdw list continue
-    :mdw list nest
-    :mdw list unnest
-    :mdw list check
-    In a note: <CR> and o continue, >> and << nest, <leader>x checks
-    :mdw format
-    :mdw lint
-    :mdw image
+    rumdl formats and lints. markdown-oxide is attached.
+    render-markdown draws the current note.
+
+    Walk the vault from the start screen: links.md, exact.md, nested.md,
+    label.md, a/note.md, misc.md, bad.md, elsewhere/loose.md, other-repo/bee.md.
   '';
 
   fixture = pkgs.runCommand "mdw-fixture" { nativeBuildInputs = [ pkgs.git ]; } ''
