@@ -4,8 +4,7 @@ Author: lmdevv
 License: MIT
 
 This help describes the commands and behavior implemented now: workspace
-indexing and metadata search. Later product behavior is specified in PRD.md
-and is not part of this module yet.
+indexing and metadata search.
 
 ==============================================================================
 SETUP                                                            *mdw.setup()*
@@ -192,6 +191,6 @@ level. The default is 2. A tab-indented item nests by one tab.
 `lsp.enabled` attaches `markdown-oxide`. `lsp.rename` gives rename to that
 server, and `:mdw rename` then leaves the files alone.
 
-Browser preview is not in this release. See the later-work note in PRD.md.
+Browser preview is not in this release.
 
 vim:tw=78:ts=8:noet:ft=help:norl:

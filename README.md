@@ -1,6 +1,6 @@
 # mdw.nvim
 
-Markdown workspace search for Neovim. This tree implements workspace indexing and metadata search. The broader product is described in [PRD.md](PRD.md).
+Markdown workspace search for Neovim. This tree implements workspace indexing and metadata search.
 
 The plugin requires Neovim 0.11 or newer. Original code is MIT.
 
@@ -111,7 +111,7 @@ require("mdw").setup({
 
 `render.enabled` turns on `render-markdown.nvim` once, when that plugin is installed. `lsp.enabled` attaches `markdown-oxide`. Set `lsp.rename` to keep rename on the language server so `:mdw rename` does not also rewrite links.
 
-A browser preview is not part of this release. That is later work, described in [PRD.md](PRD.md).
+A browser preview is not part of this release.
 
 ## Try it
 
