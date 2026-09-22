@@ -102,11 +102,54 @@ to false and call setup to restore the previous picker functions.
 Full-content search is a separate action and is not implemented here.
 
 ==============================================================================
+NAVIGATION                                                        *mdw-navigation*
+
+`gd` on a Markdown link, wikilink, or URL follows that link. A unique note
+opens at the heading or block when the link has one. Several matches open a
+chooser. A missing note asks before creating a file. A missing heading or
+block opens the note and reports that the location is missing. `gd` away from
+a link uses the attached LSP.
+
+`:Mdw sidebar` opens the outline. In that window, `o` shows the outline, `b`
+shows backlinks, `l` shows outgoing links, Enter jumps, and `q` closes it.
+`:Mdw outline`, `:Mdw backlinks`, and `:Mdw outgoing` fill the quickfix list.
+`:Mdw qf {view}` does the same. `:Mdw trouble {view}` uses Trouble when it is
+installed, and the quickfix list otherwise.
+
+`:Mdw rename {path}` previews references, then updates wikilinks and Markdown
+links and moves the file. The destination must be free. A note with unsaved
+changes is left untouched.
+
+==============================================================================
+CREATE                                                            *mdw-create*
+
+`:Mdw new {path}` asks, then writes a note from `create.default_template`.
+`:Mdw daily` opens today's note, creating it only when it is missing.
+`:Mdw daily yesterday`, `tomorrow`, `prev`, `next`, or `YYYY-MM-DD` select
+another day. `prev` and `next` open an existing daily note and do not create
+one. The default name is `YYYY-MM-DD.md`. `daily.folder` and `daily.template`
+override that. Set `obsidian.import_daily` to read `.obsidian/daily-notes.json`
+when mdw's own daily options are unset. An imported format other than
+`YYYY-MM-DD` is reported and not guessed.
+
+`:Mdw property {key} {value}`, `:Mdw aliases {names}`, and `:Mdw tags {names}`
+edit frontmatter in place. Comments, unknown keys, and the body stay put.
+A multiline YAML value is left unchanged and reported.
+
+`create.backend` is `local` by default. `obsidian` runs
+`obsidian vault={workspace} create path={file}` without a shell. `:Mdw obsidian`
+opens the current note in the app. Local commands keep working when the CLI
+is absent.
+
+Template text may contain `{{title}}`, `{{date}}`, and `{{time}}`. Any other
+`{{field}}` is copied through and reported.
+
+==============================================================================
 HEALTH                                                                *mdw-health*
 
 :checkhealth mdw
 
 Reports the Neovim version, workspace root, note count, skipped files,
-mini.pick availability, and whether file-search enrichment is active.
+mini.pick availability, file-search enrichment, and the Obsidian CLI.
 
 vim:tw=78:ts=8:noet:ft=help:norl:

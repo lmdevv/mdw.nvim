@@ -211,6 +211,11 @@ function M.list(root)
   return notes
 end
 
+function M.note(root, relpath)
+  local cache = M.ensure(root)
+  return cache.notes[relpath]
+end
+
 function M.error_list(root)
   local cache = M.get(root)
   if not cache then

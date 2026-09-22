@@ -14,23 +14,26 @@ function M.wrapped()
   return state.active
 end
 
-function M.choose(item)
-  if type(item) ~= "table" or type(item.path) ~= "string" or item.path == "" then
-    return
-  end
-  local function edit()
-    vim.cmd.edit(vim.fn.fnameescape(item.path))
-  end
+function M.call_target(fn)
   local ok, mini = pcall(require, "mini.pick")
   if ok and type(mini.get_picker_state) == "function" then
     local picker_state = mini.get_picker_state()
     local target = picker_state and picker_state.windows and picker_state.windows.target
     if target and vim.api.nvim_win_is_valid(target) then
-      vim.api.nvim_win_call(target, edit)
+      vim.api.nvim_win_call(target, fn)
       return
     end
   end
-  edit()
+  fn()
+end
+
+function M.choose(item)
+  if type(item) ~= "table" or type(item.path) ~= "string" or item.path == "" then
+    return
+  end
+  M.call_target(function()
+    vim.cmd.edit(vim.fn.fnameescape(item.path))
+  end)
 end
 
 local function plain_prompt(prompt)

@@ -71,13 +71,29 @@ An empty query lists every note in the workspace. Content search is separate and
 
 With `search.enrich_files = true`, `MiniPick.builtin.files()` matches the same metadata while its directory is inside the workspace. Call `setup()` with `enrich_files = false` to restore the previous file picker.
 
+## Navigation
+
+`gd` follows the Markdown link or wikilink under the cursor. One match opens that note, at the heading or block when the link names one. Several matches open a chooser. A missing note is created only after confirmation. A missing heading opens the existing note and says the location is missing. Off a link, `gd` falls through to an attached LSP.
+
+`:Mdw sidebar` shows the outline for the note you came from. `o`, `b`, and `l` switch among outline, backlinks, and outgoing links. Enter jumps to the entry. `:Mdw backlinks`, `:Mdw outgoing`, and `:Mdw outline` put the same results in the quickfix list. `:Mdw trouble backlinks` uses Trouble when it is installed.
+
+`:Mdw rename new/path.md` shows the references it would rewrite, then updates them and moves the file. It stops when the destination exists or a buffer has unsaved changes.
+
+## Notes and daily notes
+
+`:Mdw new path/note.md` confirms the path and creates it from `create.default_template`. `:Mdw daily` opens today's `YYYY-MM-DD` note, or creates it when that file is missing. A second call opens the same file and does not apply the template again. `:Mdw daily prev` and `:Mdw daily next` move among daily notes that already exist.
+
+`:Mdw tags work home`, `:Mdw aliases yearly plan`, and `:Mdw property title Budget` change one frontmatter field and leave the rest of the file alone.
+
+Set `create.backend` to `obsidian` to create through the official CLI. The command is `obsidian vault=<workspace> create path=<file>`, passed as arguments. `:Mdw obsidian` opens the current note in the app.
+
 ## Try it
 
 ```sh
 nix run .#demo
 ```
 
-That starts Neovim with this plugin and `mini.pick` in a fresh copy of the fixture vault. Leader is space. `<leader>sn` searches notes, `<leader>sf` searches files, and `<leader>sh` opens health.
+That starts Neovim with this plugin and `mini.pick` in a fresh copy of the fixture vault. Leader is space. `<leader>sn` searches notes, `<leader>sf` searches files, `<leader>sh` opens health, `<leader>ss` toggles the sidebar, and `<leader>sd` opens today's daily note. `gd` follows a link.
 
 ## Tests
 

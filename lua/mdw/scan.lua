@@ -352,16 +352,205 @@ local function fence_closes(line, fence)
   return marker ~= nil and #marker >= fence.len
 end
 
-local function first_heading(line)
+local function heading_parts(line)
   local indent, hashes, text = line:match("^(%s*)(#+)[%s]+(.-)%s*$")
   if not indent or #indent >= 4 or not hashes or #hashes < 1 or #hashes > 6 then
     return nil
   end
-  text = vim.trim(text:gsub("%s+#+$", ""))
+  text = vim.trim(text:gsub("%s+%^[A-Za-z0-9%-]+%s*$", ""):gsub("%s+#+$", ""))
   if text == "" then
     return nil
   end
-  return text
+  return text, #hashes
+end
+
+local function first_heading(line)
+  return heading_parts(line)
+end
+
+local function block_id(line)
+  return line:match("%s+%^([A-Za-z0-9%-]+)%s*$") or line:match("^%^([A-Za-z0-9%-]+)%s*$")
+end
+
+local function decode_pct(text)
+  return (text:gsub("%%(%x%x)", function(hex)
+    return string.char(tonumber(hex, 16))
+  end))
+end
+
+local function split_target(raw)
+  raw = decode_pct(vim.trim(raw))
+  local hash = raw:find("#", 1, true)
+  if not hash then
+    return raw, nil, nil
+  end
+  local base = raw:sub(1, hash - 1)
+  local rest = raw:sub(hash + 1)
+  if rest:sub(1, 1) == "^" then
+    return base, nil, rest:sub(2)
+  end
+  return base, rest, nil
+end
+
+local function code_spans(line)
+  local spans = {}
+  local n = #line
+  local i = 1
+  while i <= n do
+    if line:sub(i, i) == "`" then
+      local ticks = line:match("^`+", i)
+      local closer = ticks and line:find(ticks, i + #ticks, true) or nil
+      if closer then
+        spans[#spans + 1] = { i, closer + #ticks - 1 }
+        i = closer + #ticks
+      else
+        spans[#spans + 1] = { i, n }
+        break
+      end
+    else
+      i = i + 1
+    end
+  end
+  return spans
+end
+
+local function in_spans(spans, pos)
+  for _, span in ipairs(spans) do
+    if pos >= span[1] and pos <= span[2] then
+      return true
+    end
+  end
+  return false
+end
+
+local function links_in_line(line, lnum)
+  local links = {}
+  local spans = code_spans(line)
+  local n = #line
+  local i = 1
+  while i <= n do
+    if in_spans(spans, i) then
+      i = i + 1
+    else
+      local embed = false
+      local start = i
+      if line:sub(i, i) == "!" and line:sub(i + 1, i + 2) == "[[" then
+        embed = true
+        start = i
+        i = i + 1
+      end
+      if line:sub(i, i + 1) == "[[" then
+        local close = line:find("]]", i + 2, true)
+        if close and not in_spans(spans, i) then
+          local inner = line:sub(i + 2, close - 1)
+          local pipe = inner:find("|", 1, true)
+          local raw_target = inner
+          local label = nil
+          if pipe then
+            raw_target = inner:sub(1, pipe - 1)
+            label = inner:sub(pipe + 1)
+          end
+          local target, heading, block = split_target(raw_target)
+          links[#links + 1] = {
+            line = lnum,
+            start_col = start,
+            end_col = close + 1,
+            syntax = "wikilink",
+            embed = embed,
+            target = target,
+            label = label,
+            heading = heading,
+            block = block,
+            raw = line:sub(start, close + 1),
+          }
+          i = close + 2
+        else
+          i = start + 1
+        end
+      elseif line:sub(i, i) == "[" then
+        local dest = line:find("%]%(", i)
+        if dest and not in_spans(spans, i) then
+          local depth = 1
+          local k = dest + 2
+          while k <= n and depth > 0 do
+            local next_char = line:sub(k, k)
+            if next_char == "(" then
+              depth = depth + 1
+            elseif next_char == ")" then
+              depth = depth - 1
+            end
+            k = k + 1
+          end
+          if depth == 0 then
+            local label = line:sub(i + 1, dest - 1)
+            local body = line:sub(dest + 2, k - 2)
+            if body:sub(1, 1) == "<" and body:sub(-1) == ">" then
+              body = body:sub(2, -2)
+            end
+            local bang = i > 1 and line:sub(i - 1, i - 1) == "!"
+            local from = bang and i - 1 or i
+            local target, heading, block = split_target(body)
+            links[#links + 1] = {
+              line = lnum,
+              start_col = from,
+              end_col = k - 1,
+              syntax = "markdown",
+              embed = bang,
+              target = target,
+              label = label,
+              heading = heading,
+              block = block,
+              raw = line:sub(from, k - 1),
+            }
+            i = k
+          else
+            i = i + 1
+          end
+        else
+          local url = line:match("^<?(https?://[^%s>]+)>?", i)
+          if url and not in_spans(spans, i) then
+            local raw = line:match("^<?https?://[^%s>]+>?", i)
+            links[#links + 1] = {
+              line = lnum,
+              start_col = i,
+              end_col = i + #raw - 1,
+              syntax = "url",
+              embed = false,
+              target = url,
+              label = nil,
+              heading = nil,
+              block = nil,
+              raw = raw,
+            }
+            i = i + #raw
+          else
+            i = i + 1
+          end
+        end
+      else
+        local url = line:match("^(https?://%S+)", i)
+        if url and (i == 1 or line:sub(i - 1, i - 1):match("%s")) then
+          url = url:gsub("[%)%].,;]+$", "")
+          links[#links + 1] = {
+            line = lnum,
+            start_col = i,
+            end_col = i + #url - 1,
+            syntax = "url",
+            embed = false,
+            target = url,
+            label = nil,
+            heading = nil,
+            block = nil,
+            raw = url,
+          }
+          i = i + #url
+        else
+          i = i + 1
+        end
+      end
+    end
+  end
+  return links
 end
 
 function M.parse(text, filename, stem)
@@ -409,6 +598,9 @@ function M.parse(text, filename, stem)
 
   local heading = nil
   local tags = {}
+  local headings = {}
+  local blocks = {}
+  local links = {}
   local seen = {}
   for _, tag in ipairs(frontmatter.tags) do
     add_unique(tags, seen, tag, true)
@@ -428,6 +620,17 @@ function M.parse(text, filename, stem)
       else
         if heading == nil then
           heading = first_heading(line)
+        end
+        local heading_text, level = heading_parts(line)
+        if heading_text then
+          headings[#headings + 1] = { text = heading_text, level = level, line = index }
+        end
+        local found_block = block_id(line)
+        if found_block then
+          blocks[#blocks + 1] = { id = found_block, line = index }
+        end
+        for _, link in ipairs(links_in_line(line, index)) do
+          links[#links + 1] = link
         end
         for _, tag in ipairs(tags_in_line(line)) do
           add_unique(tags, seen, tag, true)
@@ -454,6 +657,9 @@ function M.parse(text, filename, stem)
     title_source = title_source,
     aliases = frontmatter.aliases,
     tags = tags,
+    headings = headings,
+    blocks = blocks,
+    links = links,
   }
 end
 

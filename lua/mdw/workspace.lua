@@ -107,9 +107,17 @@ function M.is_real_file(path)
 end
 
 function M.resolve(bufnr)
+  bufnr = bufnr or 0
   local pinned = configured_root()
   if pinned then
     return pinned
+  end
+  if vim.bo[bufnr].filetype == "mdw-sidebar" then
+    local source = vim.b[bufnr].mdw_source
+    if type(source) == "string" and source ~= "" then
+      local anchor = vim.fs.dirname(M.normalize(source))
+      return git_root(anchor) or anchor
+    end
   end
   local anchor = M.anchor(bufnr)
   return git_root(anchor) or anchor

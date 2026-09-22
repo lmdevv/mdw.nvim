@@ -91,6 +91,10 @@
           title: Nested
           tags: [parent/child]
           ---
+
+          # Nested
+
+          A marked paragraph. ^mark
         '';
         "vault/lower.md" = ''
           # budget
@@ -129,8 +133,18 @@
         "vault/node_modules/pkg/skip.md" = ''
           # Package skip
         '';
-        "vault/other.md" = ''
-          # Other
+        "vault/links.md" = ''
+          # Links
+
+          Unique [[exact]].
+          Ambiguous [[note]].
+          Missing [[Brand New]].
+          Missing heading [[nested#Gone]].
+          Heading [[nested#Nested]].
+          Block [[nested#^mark]].
+          Alias [[yearly plan]].
+          Label is not the target [[exact|UniqueLabel]].
+          [Plan](my%20notes/plan.md)
         '';
         "vault/my notes/plan.md" = ''
           # Plan
@@ -171,10 +185,27 @@
         <leader>sn  note search
         <leader>sf  ordinary mini.pick files
         <leader>sh  mdw health
+        <leader>ss  sidebar
+        <leader>sd  today's daily note
+        gd          follow the link under the cursor
+
+        In the sidebar: o outline, b backlinks, l outgoing, Enter jump, q close.
 
         :Mdw search [query]
         :Mdw index
         :Mdw health
+        :Mdw follow
+        :Mdw sidebar
+        :Mdw backlinks
+        :Mdw outgoing
+        :Mdw outline
+        :Mdw qf backlinks
+        :Mdw rename {path}
+        :Mdw new {path}
+        :Mdw daily [today|yesterday|tomorrow|prev|next|YYYY-MM-DD]
+        :Mdw tags {tags}
+        :Mdw aliases {names}
+        :Mdw property {key} {value}
       '';
 
       entry = pkgs.writeShellScriptBin "mdw-nvim" ''
@@ -186,6 +217,7 @@
         cp -a "$src/elsewhere" "$work/elsewhere"
         cp -a "$src/other-repo" "$work/other-repo"
         cp "$src/HOWTO.txt" "$work/HOWTO.txt"
+        chmod -R u+w "$work"
         export GIT_CONFIG_GLOBAL="$work/gitconfig"
         git config --file "$GIT_CONFIG_GLOBAL" --add safe.directory '*'
         cd "$work/vault"

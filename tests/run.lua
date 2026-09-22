@@ -487,6 +487,280 @@ add("mini.pick enrichment wraps once and can be removed", function()
   package.loaded["mini.pick"] = nil
 end)
 
+add("links resolve outside code and ignore labels", function()
+  local scan = require("mdw.scan")
+  local note = scan.parse([=[
+# Top ^alpha
+
+See [[Budget|Label]] and [[Note#Section]] and [[#Top]].
+[rel](../exact.md#Forecast)
+`[[hidden]]`
+
+```md
+[[fenced]]
+```
+
+https://example.com/a
+]=], "links.md", "links")
+  eq(note.headings[1].text, "Top", "heading text drops the block id")
+  eq(note.headings[1].level, 1, "heading level")
+  eq(note.blocks[1].id, "alpha", "block id")
+  eq(note.blocks[1].line, note.headings[1].line, "block shares the heading line")
+  local targets = {}
+  for _, link in ipairs(note.links) do
+    targets[#targets + 1] = link.syntax .. ":" .. link.target .. ":" .. tostring(link.heading) .. ":" .. tostring(link.block)
+  end
+  same(targets, {
+    "wikilink:Budget:nil:nil",
+    "wikilink:Note:Section:nil",
+    "wikilink::Top:nil",
+    "markdown:../exact.md:Forecast:nil",
+    "url:https://example.com/a:nil:nil",
+  }, "code and fences are not links")
+  eq(note.links[1].label, "Label", "wikilink label is kept on the occurrence")
+
+  local dir = tmp()
+  write(dir, "exact.md", "---\naliases:\n  - yearly plan\n---\n# Forecast\n")
+  write(dir, "a/note.md", "# A\n")
+  write(dir, "b/note.md", "# B\n")
+  write(dir, "label.md", "See [[Missing|UniqueLabel]] and [[yearly plan]] and [[note]] and [[exact#Gone]] and [[#Missing]].\n")
+  write(dir, "UniqueLabel.md", "# Label file\n")
+  local mdw = require("mdw")
+  mdw.setup({ workspace = { root = dir } })
+  mdw.rebuild()
+  local resolve = require("mdw.resolve")
+  local label = require("mdw.index").note(dir, "label.md")
+  local function linked(target)
+    for _, link in ipairs(label.links) do
+      if link.target == target or (target == "" and link.heading == "Missing") then
+        return resolve.resolve(dir, "label.md", link)
+      end
+    end
+    error("missing link " .. target)
+  end
+  local yearly = linked("yearly plan")
+  eq(yearly.kind, "resolved", "alias resolves")
+  eq(yearly.matches[1].relpath, "exact.md", "alias finds the note")
+  local ambiguous = linked("note")
+  eq(ambiguous.kind, "ambiguous", "duplicate stems are ambiguous")
+  eq(#ambiguous.matches, 2, "both note.md files are candidates")
+  local missing = linked("Missing")
+  eq(missing.kind, "missing-note", "unknown wikilink is missing")
+  eq(missing.proposed, "Missing.md", "proposed path uses the target, not the label")
+  local gone = linked("exact")
+  eq(gone.kind, "missing-location", "missing heading is not a missing note")
+  eq(gone.detail, "heading", "missing location names the heading")
+  local same_file = linked("")
+  eq(same_file.kind, "missing-location", "same-file heading can be missing")
+end)
+
+add("follow opens a unique note and creates only after confirmation", function()
+  local dir = tmp()
+  local exact = write(dir, "exact.md", "# Exact\n")
+  local links = write(dir, "links.md", "See [[exact]] and [[Brand New]].\n")
+  local mdw = require("mdw")
+  mdw.setup({ workspace = { root = dir } })
+  mdw.rebuild()
+  vim.cmd.edit(vim.fn.fnameescape(links))
+  local note = require("mdw.index").note(dir, "links.md")
+  local exact_link, new_link
+  for _, link in ipairs(note.links) do
+    if link.target == "exact" then
+      exact_link = link
+    elseif link.target == "Brand New" then
+      new_link = link
+    end
+  end
+  vim.api.nvim_win_set_cursor(0, { exact_link.line, exact_link.start_col - 1 })
+  truthy(require("mdw.nav").follow(), "follow handles the link")
+  eq(require("mdw.workspace").normalize(vim.api.nvim_buf_get_name(0)), require("mdw.workspace").normalize(exact), "unique link opens the note")
+
+  vim.cmd.edit(vim.fn.fnameescape(links))
+  vim.api.nvim_win_set_cursor(0, { new_link.line, new_link.start_col - 1 })
+  local saved = vim.fn.confirm
+  vim.fn.confirm = function()
+    return 2
+  end
+  truthy(require("mdw.nav").follow(), "declined create still handles the link")
+  eq(vim.uv.fs_stat(dir .. "/Brand New.md"), nil, "cancel creates no file")
+  vim.fn.confirm = function()
+    return 1
+  end
+  require("mdw.nav").follow()
+  truthy(vim.uv.fs_stat(dir .. "/Brand New.md") ~= nil, "confirmed create writes the note")
+  eq(require("mdw.workspace").normalize(vim.api.nvim_buf_get_name(0)), require("mdw.workspace").normalize(dir .. "/Brand New.md"), "created note opens")
+  vim.fn.confirm = saved
+end)
+
+add("backlinks, outgoing links, sidebar, and quickfix share one index", function()
+  local dir = tmp()
+  local source = write(dir, "source.md", "# Source\n\nSee [[dest]] and [[missing one]].\n")
+  write(dir, "dest.md", "# Dest\n\nBack to [[source]].\n")
+  local mdw = require("mdw")
+  mdw.setup({ workspace = { root = dir } })
+  mdw.rebuild()
+  local relations = require("mdw.relations")
+  local back = relations.backlinks(dir, "dest.md")
+  eq(back[1].relpath, "source.md", "backlink names the source")
+  eq(#back, 1, "one backlink")
+  local outgoing = relations.outgoing(dir, require("mdw.index").note(dir, "source.md"))
+  eq(#outgoing, 2, "outgoing keeps the unresolved link")
+  truthy(outgoing[2].text:find("missing", 1, true) ~= nil, "unresolved outgoing link stays visible")
+  local qf = relations.quickfix(dir, "backlinks", "dest.md")
+  eq(#qf, 1, "quickfix uses the backlink result")
+  eq(vim.fn.getqflist({ title = 0 }).title, "mdw backlinks", "quickfix title")
+
+  vim.cmd.edit(vim.fn.fnameescape(source))
+  local sidebar = require("mdw.sidebar")
+  sidebar.open()
+  eq(vim.bo.filetype, "mdw-sidebar", "sidebar filetype")
+  eq(sidebar.source_path(), require("mdw.workspace").normalize(source), "sidebar keeps the source note")
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  truthy(table.concat(lines, "\n"):find("Source", 1, true) ~= nil, "outline shows the heading")
+  eq(require("mdw.index").note(dir, "mdw://sidebar"), nil, "sidebar is not a note")
+  sidebar.close()
+end)
+
+add("rename updates references and refuses dirty buffers", function()
+  local dir = tmp()
+  write(dir, "exact.md", "# Exact\n\nSelf [[exact|Keep]].\n")
+  write(dir, "other.md", "Go [[exact#Exact]] and [Plan](exact.md).\n")
+  write(dir, "taken.md", "# Taken\n")
+  local mdw = require("mdw")
+  mdw.setup({ workspace = { root = dir } })
+  mdw.rebuild()
+  local refactor = require("mdw.refactor")
+  local blocked = refactor.plan(dir, "exact.md", "taken.md")
+  eq(blocked, nil, "existing destination is refused")
+  vim.cmd.edit(vim.fn.fnameescape(dir .. "/other.md"))
+  vim.bo.modified = true
+  local dirty = refactor.plan(dir, "exact.md", "moved.md")
+  local applied, err = refactor.apply(dirty)
+  eq(applied, nil, "dirty buffer blocks the rename")
+  truthy(err:find("unsaved", 1, true) ~= nil, "dirty error names unsaved changes")
+  truthy(vim.uv.fs_stat(dir .. "/exact.md") ~= nil, "source remains")
+  vim.bo.modified = false
+  local plan = refactor.plan(dir, "exact.md", "nested/moved.md")
+  local ok = refactor.apply(plan)
+  eq(ok, true, "rename applies")
+  truthy(vim.uv.fs_stat(dir .. "/nested/moved.md") ~= nil, "note moved")
+  eq(vim.uv.fs_stat(dir .. "/exact.md"), nil, "old path is gone")
+  local other = assert(io.open(dir .. "/other.md", "rb")):read("*a")
+  truthy(other:find("[[nested/moved#Exact]]", 1, true) ~= nil, "wikilink keeps the heading")
+  truthy(other:find("[Plan](nested/moved.md)", 1, true) ~= nil, "markdown link keeps the label")
+  local moved = assert(io.open(dir .. "/nested/moved.md", "rb")):read("*a")
+  truthy(moved:find("[[nested/moved|Keep]]", 1, true) ~= nil, "self link keeps the label")
+end)
+
+add("frontmatter edits preserve unrelated lines", function()
+  local meta = require("mdw.meta")
+  local text = "---\n# comment\nkept: 1\ntags:\n  - a\n---\n\n# Hi\n"
+  local updated = meta.apply(text, "tags", { "work", "home" })
+  truthy(updated:find("# comment", 1, true) ~= nil, "comment stays")
+  truthy(updated:find("kept: 1", 1, true) ~= nil, "unknown key stays")
+  truthy(updated:find("  %- work", 1, false) ~= nil or updated:find("  - work", 1, true) ~= nil, "new tag is written")
+  truthy(updated:find("  - a\n", 1, true) == nil, "old tag is replaced")
+  truthy(updated:find("# Hi", 1, true) ~= nil, "body stays")
+  local bad, err = meta.apply("---\ntitle: |\n  hello\n---\n", "title", "Next")
+  eq(bad, nil, "multiline value is not rewritten")
+  truthy(err:find("unsupported", 1, true) ~= nil, "unsupported syntax is reported")
+  local added = meta.apply("# Plain\n", "title", "Plain")
+  truthy(added:find("title: Plain", 1, true) ~= nil, "missing frontmatter is added")
+  truthy(added:find("# Plain", 1, true) ~= nil, "body remains under new frontmatter")
+end)
+
+add("create, daily notes, and obsidian cli", function()
+  local dir = tmp()
+  local day = "KEEP {{title}} {{place}}\n"
+  local mdw = require("mdw")
+  mdw.setup({
+    workspace = { root = dir },
+    create = {
+      templates = { day = day },
+      backend = "local",
+    },
+    daily = { folder = "daily", template = "day" },
+  })
+  local saved = vim.fn.confirm
+  vim.fn.confirm = function()
+    return 2
+  end
+  local cancelled = require("mdw.create").create({ root = dir, relpath = "skip.md", template = "day" })
+  eq(cancelled, nil, "declined create returns nothing")
+  eq(vim.uv.fs_stat(dir .. "/skip.md"), nil, "declined create writes nothing")
+  vim.fn.confirm = function()
+    return 1
+  end
+  local created = require("mdw.create").create({ root = dir, relpath = "made note.md", template = "day", title = "Made" })
+  truthy(created ~= nil, "confirmed create writes")
+  local made = assert(io.open(created, "rb")):read("*a")
+  truthy(made:find("KEEP Made", 1, true) ~= nil, "template title is filled")
+  truthy(made:find("{{place}}", 1, true) ~= nil, "unknown template field is preserved")
+  local again = require("mdw.create").create({ root = dir, relpath = "made note.md", confirm = false })
+  eq(again, nil, "existing note is not overwritten")
+
+  write(dir, "daily/2020-01-02.md", "OLD\n")
+  local daily = require("mdw.daily")
+  local reused = daily.open("2020-01-02", { root = dir, confirm = false })
+  local old = assert(io.open(reused, "rb")):read("*a")
+  eq(old, "OLD\n", "existing daily note is not rewritten")
+  local fresh = daily.open("2020-01-03", { root = dir, confirm = false })
+  local body = assert(io.open(fresh, "rb")):read("*a")
+  truthy(body:find("KEEP 2020-01-03", 1, true) ~= nil, "new daily note uses the template")
+  local previous = daily.open("prev", { root = dir, confirm = false })
+  eq(vim.fs.basename(previous), "2020-01-02.md", "prev opens the earlier daily note")
+  eq(vim.uv.fs_stat(dir .. "/daily/2020-01-01.md"), nil, "prev does not create a missing day")
+  mdw.setup({
+    workspace = { root = dir },
+    daily = { format = "dddd" },
+  })
+  local spec = daily.spec(dir)
+  eq(spec, nil, "unsupported daily format is reported")
+
+  local script = dir .. "/obsidian"
+  local log = dir .. "/obsidian.log"
+  local handle = assert(io.open(script, "wb"))
+  handle:write(string.format([=[
+#!/bin/sh
+printf '%%s\n' "$@" >> %q
+vault=""
+path=""
+for arg in "$@"; do
+  case "$arg" in
+    vault=*) vault=${arg#vault=} ;;
+    path=*) path=${arg#path=} ;;
+  esac
+done
+if [ -n "$vault" ] && [ -n "$path" ]; then
+  mkdir -p "$(dirname "$vault/$path")"
+  printf 'from cli\n' > "$vault/$path"
+fi
+]=], log))
+  handle:close()
+  vim.uv.fs_chmod(script, 493)
+  mdw.setup({
+    workspace = { root = dir },
+    create = { backend = "obsidian" },
+    obsidian = { enabled = true, command = script },
+  })
+  local cli = require("mdw.create").create({
+    root = dir,
+    relpath = "from cli.md",
+    template = "Travel",
+    confirm = false,
+    backend = "obsidian",
+  })
+  truthy(cli ~= nil, "obsidian backend creates the file")
+  local recorded = assert(io.open(log, "rb")):read("*a")
+  truthy(recorded:find("vault=" .. dir, 1, true) ~= nil, "vault is an argument")
+  truthy(recorded:find("path=from cli.md", 1, true) ~= nil, "path is an argument")
+  truthy(recorded:find("template=Travel", 1, true) ~= nil, "template name is an argument")
+  truthy(recorded:find("create\n", 1, true) ~= nil, "create is a separate argument")
+  local cli_body = assert(io.open(cli, "rb")):read("*a")
+  eq(cli_body, "from cli\n", "local template body is not written for the cli backend")
+  vim.fn.confirm = saved
+end)
+
 local function finish()
   vim.cmd.cd(saved_cwd)
   for _, dir in ipairs(temps) do

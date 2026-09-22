@@ -18,11 +18,15 @@ function M.collect()
     mini_pick = pick.available(),
     enrich = false,
     enrich_wrapped = pick.wrapped(),
+    obsidian = false,
+    obsidian_command = nil,
   }
   if not report.setup then
     return report
   end
   report.enrich = config.get().search.enrich_files
+  report.obsidian = config.get().obsidian.enabled
+  report.obsidian_command = require("mdw.obsidian").available()
   local ok, root = pcall(workspace.resolve, 0)
   if ok and root then
     report.root = root
@@ -63,6 +67,13 @@ function M.check()
     vim.health.warn("search.enrich_files is set, but mini.pick could not be wrapped")
   else
     vim.health.info("file-search enrichment is off")
+  end
+  if report.obsidian and report.obsidian_command then
+    vim.health.ok("obsidian CLI is available")
+  elseif report.obsidian then
+    vim.health.warn("obsidian integration is enabled, but the CLI was not found")
+  else
+    vim.health.info("obsidian CLI integration is off")
   end
   for _, err in ipairs(report.errors) do
     vim.health.warn(err.path .. ": " .. err.message)
