@@ -1,8 +1,8 @@
 # mdw.nvim
 
-Markdown workspace search for Neovim. This tree implements workspace indexing and metadata search.
+Markdown workspace tools for Neovim: note search, links, outlines, backlinks, templates, daily notes, and list editing, with optional formatting and diagnostics.
 
-The plugin requires Neovim 0.11 or newer. Original code is MIT.
+Neovim 0.11 or newer. The core is Lua and does not bundle executables. Original code is MIT. This repository does not ship a personal Neovim configuration.
 
 ## Setup
 
@@ -31,6 +31,27 @@ Install `mini.pick` before enabling `search.enrich_files` if you want that picke
 | `:mdw health` | Check version, workspace, index, and integrations |
 | `:mdw search [query]` | Search notes in the current workspace |
 | `:mdw index` | Rebuild the workspace index |
+| `:mdw follow` | Follow the link under the cursor |
+| `:mdw sidebar` | Open the outline, backlinks, and outgoing links |
+| `:mdw outline` | List headings in the quickfix |
+| `:mdw backlinks` | List backlinks in the quickfix |
+| `:mdw outgoing` | List outgoing links in the quickfix |
+| `:mdw qf [view]` | Fill the quickfix with `outline`, `backlinks`, or `outgoing` |
+| `:mdw trouble [view]` | Show that list in Trouble when it is installed |
+| `:mdw rename {path}` | Move a note and update references |
+| `:mdw new {path}` | Create a note |
+| `:mdw daily [...]` | Open today's note, or `yesterday`, `tomorrow`, `prev`, `next`, or `YYYY-MM-DD` |
+| `:mdw property {key} {value}` | Set one frontmatter property |
+| `:mdw aliases {names}` | Replace aliases |
+| `:mdw tags {names}` | Replace tags |
+| `:mdw obsidian` | Open the current note in Obsidian |
+| `:mdw format` | Format the buffer with rumdl |
+| `:mdw lint` | Publish rumdl diagnostics |
+| `:mdw image` | Paste a clipboard image |
+| `:mdw list continue` | Continue the current list item |
+| `:mdw list nest` | Indent the item one level |
+| `:mdw list unnest` | Outdent the item one level |
+| `:mdw list check` | Toggle a checkbox |
 
 `:checkhealth mdw` reports the same health information.
 
@@ -112,6 +133,59 @@ require("mdw").setup({
 `render.enabled` turns on `render-markdown.nvim` once, when that plugin is installed. `lsp.enabled` attaches `markdown-oxide`. Set `lsp.rename` to keep rename on the language server so `:mdw rename` does not also rewrite links.
 
 A browser preview is not part of this release.
+
+## Compatibility
+
+Neovim 0.11 or newer. Development and tests use Neovim 0.12 on x86_64-linux. The plugin is Lua, so it does not need its own build for each operating system.
+
+Git is used to find the workspace toplevel. Without git, the workspace is the current file's directory. `workspace.root` skips that lookup.
+
+Everything below is optional. Setup still succeeds when the tool is missing:
+
+| Tool | Used for |
+| --- | --- |
+| mini.pick, snacks.nvim, or telescope.nvim | `:mdw search` and the link chooser. Otherwise `vim.ui.select` |
+| rumdl | `:mdw format` and `:mdw lint`. Format-on-save stays off |
+| wl-paste or xclip | `:mdw image` on Linux. Set `edit.clipboard` to another command list on other systems |
+| render-markdown.nvim | In-buffer rendering when `render.enabled` is true |
+| markdown-oxide | LSP when `lsp.enabled` is true |
+| Obsidian CLI | Note creation when `create.backend` is `obsidian`, and `:mdw obsidian` |
+| Trouble | `:mdw trouble` only |
+
+`:mdw image` looks for `wl-paste` and then `xclip`. That default is the Linux clipboard. Other systems pass their own reader through `edit.clipboard`, for example `{ "pngpaste" }` on macOS.
+
+## NixVim
+
+The flake output `nixvimModules.default` is a NixVim module. Import it from the NixVim configuration, not from a personal Neovim config checked into this repo:
+
+```nix
+programs.nixvim = {
+  imports = [ inputs.mdw.nixvimModules.default ];
+
+  plugins.mdw = {
+    enable = true;
+    settings = {
+      search.picker = "auto";
+    };
+    # Optional. mdw does not fetch these.
+    extraPackages = [ pkgs.rumdl pkgs.git ];
+  };
+};
+```
+
+A standalone NixVim configuration uses the same module:
+
+```nix
+nixvim.lib.evalNixvim {
+  inherit system;
+  modules = [
+    inputs.mdw.nixvimModules.default
+    { plugins.mdw.enable = true; }
+  ];
+}
+```
+
+`settings` is passed to `require("mdw").setup()`. `extraPackages` is added to Neovim's `PATH`.
 
 ## Try it
 

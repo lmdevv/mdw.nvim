@@ -1,10 +1,11 @@
-*mdw.txt*  Markdown workspace search and indexing
+*mdw.txt*  Markdown workspace tools
 
 Author: lmdevv
 License: MIT
 
-This help describes the commands and behavior implemented now: workspace
-indexing and metadata search.
+mdw searches notes, follows links, and edits lists and frontmatter. Optional
+tools add formatting, diagnostics, rendering, and Obsidian. This plugin does
+not include a personal Neovim configuration.
 
 ==============================================================================
 SETUP                                                            *mdw.setup()*
@@ -18,17 +19,40 @@ SETUP                                                            *mdw.setup()*
 <
 
 Calling setup again replaces the configuration and refreshes commands and
-autocmds without duplicating them. Neovim 0.11 or newer is required.
+autocmds without duplicating them.
 
-mdw does not set leader mappings.
+mdw does not set leader mappings. See |mdw-compatibility| for the Neovim
+version and optional tools.
 
 ==============================================================================
 COMMANDS                                                            *mdw-commands*
 
-:mdw                  Show command usage.
-:mdw health           Run |:checkhealth| for mdw.
-:mdw search [query]   Search notes in the current workspace.
-:mdw index            Rebuild the current workspace index.
+:mdw                         Show command usage.
+:mdw health                  Run |:checkhealth| for mdw.
+:mdw search [query]          Search notes in the current workspace.
+:mdw index                   Rebuild the current workspace index.
+:mdw follow                  Follow the link under the cursor.
+:mdw sidebar                 Open the note sidebar.
+:mdw outline                 List headings in the quickfix.
+:mdw backlinks               List backlinks in the quickfix.
+:mdw outgoing                List outgoing links in the quickfix.
+:mdw qf {view}               Fill the quickfix. View is outline,
+                             backlinks, or outgoing.
+:mdw trouble {view}          Show that list in Trouble when installed.
+:mdw rename {path}           Move a note and update references.
+:mdw new {path}              Create a note.
+:mdw daily [...]             Open a daily note.
+:mdw property {key} {value}  Set one frontmatter property.
+:mdw aliases {names}         Replace aliases.
+:mdw tags {names}            Replace tags.
+:mdw obsidian                Open the current note in Obsidian.
+:mdw format                  Format the buffer with rumdl.
+:mdw lint                    Publish rumdl diagnostics.
+:mdw image                   Paste a clipboard image.
+:mdw list continue           Continue the current list item.
+:mdw list nest               Indent the item one level.
+:mdw list unnest             Outdent the item one level.
+:mdw list check              Toggle a checkbox.
 
 ==============================================================================
 WORKSPACE                                                          *mdw-workspace*
@@ -154,8 +178,8 @@ HEALTH                                                                *mdw-healt
 :checkhealth mdw
 
 Reports the Neovim version, workspace root, note count, skipped files,
-mini.pick, file-search enrichment, Obsidian, rumdl, rendering, and
-markdown-oxide.
+the note-search picker, file-search enrichment, Obsidian, rumdl,
+rendering, and markdown-oxide.
 
 ==============================================================================
 EDITING                                                            *mdw-editing*
@@ -192,5 +216,58 @@ level. The default is 2. A tab-indented item nests by one tab.
 server, and `:mdw rename` then leaves the files alone.
 
 Browser preview is not in this release.
+
+==============================================================================
+COMPATIBILITY                                                *mdw-compatibility*
+
+Neovim 0.11 or newer. Tests run on Neovim 0.12 on x86_64-linux. mdw is Lua
+and does not ship a binary, so it does not need a separate build per system.
+
+Git finds the workspace toplevel. Without git, the workspace is the current
+file's directory. `workspace.root` skips that lookup.
+
+Optional tools. Setup still succeeds when one is missing:
+
+	mini.pick, snacks.nvim, telescope.nvim
+		Note search and the link chooser. |vim.ui.select()| is the
+		fallback.
+	rumdl
+		`:mdw format` and `:mdw lint`. Format-on-save stays off.
+	wl-paste or xclip
+		`:mdw image` on Linux. Set `edit.clipboard` to another argv
+		list on other systems.
+	render-markdown.nvim
+		In-buffer rendering when `render.enabled` is true.
+	markdown-oxide
+		LSP when `lsp.enabled` is true.
+	Obsidian CLI
+		Creation when `create.backend` is "obsidian", and
+		`:mdw obsidian`.
+	Trouble
+		`:mdw trouble` only.
+
+`:mdw image` tries `wl-paste`, then `xclip`. That default is the Linux
+clipboard. Another system sets `edit.clipboard`, for example
+`{ "pngpaste" }`.
+
+==============================================================================
+NIXVIM                                                              *mdw-nixvim*
+
+The flake output `nixvimModules.default` is a NixVim module. Import it from
+the NixVim configuration:
+
+>nix
+  programs.nixvim = {
+    imports = [ inputs.mdw.nixvimModules.default ];
+    plugins.mdw = {
+      enable = true;
+      settings = { };
+      extraPackages = [ pkgs.rumdl ];
+    };
+  };
+<
+
+`settings` is passed to |mdw.setup()|. `extraPackages` is added to Neovim's
+PATH. mdw does not download those packages.
 
 vim:tw=78:ts=8:noet:ft=help:norl:

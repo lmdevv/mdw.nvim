@@ -13,12 +13,7 @@
       };
       lib = pkgs.lib;
 
-      mdw = pkgs.vimUtils.buildVimPlugin {
-        pname = "mdw-nvim";
-        version = "m0-m1";
-        src = lib.cleanSource self;
-        doCheck = false;
-      };
+      mdw = import ./nix/plugin.nix { inherit lib pkgs self; };
 
       nvim = pkgs.wrapNeovimUnstable pkgs.neovim-unwrapped {
         extraName = "-mdw-test";
@@ -284,5 +279,7 @@
           program = "${entry}/bin/mdw-nvim";
         };
       };
+
+      nixvimModules.default = import ./nix/nixvim.nix { inherit self; };
     };
 }
