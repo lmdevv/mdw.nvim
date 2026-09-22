@@ -1,167 +1,52 @@
 # mdw.nvim
 
-Markdown workspace tools for Neovim: note search, links, outlines, backlinks, templates, daily notes, and list editing, with optional formatting and diagnostics.
+Markdown workspace tools for Neovim 0.11 and newer. Search notes by path, title, alias, and tag. Follow links, keep a sidebar, rename a note and its references, create notes and daily notes, and edit lists. Formatting and diagnostics are optional.
 
-Neovim 0.11 or newer. The core is Lua and does not bundle executables. Original code is MIT. This repository does not ship a personal Neovim configuration.
+mdw maps no keys. Behavior details live in `:help mdw.txt`.
 
-## Setup
+## Requirements
 
-```lua
-require("mdw").setup({
-  workspace = {
-    -- Pin a root. Omit to use the git toplevel of the current file.
-    root = nil,
-  },
-  search = {
-    -- Also match note metadata from mini.pick's file picker.
-    enrich_files = false,
-  },
-})
-```
-
-`setup()` can be called again. It replaces the options and does not duplicate commands or autocmds. mdw does not create leader mappings.
-
-Install mini.pick, Snacks, or Telescope before enabling `search.enrich_files` if you want that file picker wrapped during setup.
-
-## Commands
-
-| Command | Action |
-| --- | --- |
-| `:mdw` | Show usage |
-| `:mdw health` | Check version, workspace, index, and integrations |
-| `:mdw search [query]` | Search notes in the current workspace |
-| `:mdw index` | Rebuild the workspace index |
-| `:mdw follow` | Follow the link under the cursor |
-| `:mdw sidebar` | Open the outline, backlinks, and outgoing links |
-| `:mdw outline` | List headings in the quickfix |
-| `:mdw backlinks` | List backlinks in the quickfix |
-| `:mdw outgoing` | List outgoing links in the quickfix |
-| `:mdw qf [view]` | Fill the quickfix with `outline`, `backlinks`, or `outgoing` |
-| `:mdw trouble [view]` | Show that list in Trouble when it is installed |
-| `:mdw rename {path}` | Move a note and update references |
-| `:mdw new {path}` | Create a note. Optional `template=` and `backend=` |
-| `:mdw daily [...]` | Open today's note, or `yesterday`, `tomorrow`, `prev`, `next`, or `YYYY-MM-DD` |
-| `:mdw dailies [query]` | Search only daily notes |
-| `:mdw property {key} {value}` | Set one frontmatter property |
-| `:mdw aliases {names}` | Replace aliases |
-| `:mdw tags {names}` | Replace tags |
-| `:mdw obsidian` | Open the current note in Obsidian |
-| `:mdw format` | Format the buffer with rumdl |
-| `:mdw lint` | Publish rumdl diagnostics |
-| `:mdw image` | Paste a clipboard image |
-| `:mdw list continue` | Continue the current list item |
-| `:mdw list nest` | Indent the item one level |
-| `:mdw list unnest` | Outdent the item one level |
-| `:mdw list check` | Toggle a checkbox |
-
-`:checkhealth mdw` reports the same health information.
-
-## Workspace
-
-Search and indexing use the git toplevel of the file in the current window. A file outside git uses that file's directory. `workspace.root` pins one directory and skips discovery; a relative path is resolved from the current working directory.
-
-Changing to a buffer from another repository changes the workspace. Dot-directories and `node_modules` are skipped. Notes are `.md`, `.markdown`, `.mdc`, `.mdx`, and `.mkd`.
-
-## What the index reads
-
-Indexing does not write files. A malformed note is skipped and reported; other notes are still indexed.
-
-- Title: frontmatter string `title`, otherwise the first ATX heading, otherwise the filename stem.
-- Aliases: frontmatter `aliases` or `alias`. A link label is not an alias.
-- Tags: frontmatter `tags` or `tag`, plus inline `#tags` outside fenced code, inline code, and link destinations.
-
-The same scan is used for every supported extension. A `#` inside JSX can become a tag. Supported frontmatter is a YAML subset: scalars, flow lists, and block lists. Unknown keys are ignored when their lines fit that subset. Multiline scalars and unclosed frontmatter skip the file.
-
-Modified buffers are read from editor text, so unsaved edits are searchable. Other files are read from disk. `:mdw index` rebuilds the workspace. Opening an unmodified buffer picks up an external edit to that file.
-
-## Search
-
-`:mdw search` uses `search.picker`. `auto` (the default) uses `mini.pick`, then Snacks, then Telescope, and `vim.ui.select` when none of those is installed. Set `search.picker` to `mini`, `snacks`, `telescope`, or `select` to choose one. The note list keeps mdw's own ranking; the picker does not re-filter it.
-
-A query is text plus optional `#tag` filters. Every filter must match the whole tag, ignoring case, so `#parent` does not match `parent/child`. Every text token must match a substring of the path, filename, title, aliases, or tags. Text is case-insensitive until the query contains an uppercase letter.
-
-Results are one row per note. Columns are separated by tabs, in this order: path, title, aliases, tags. A title that is only the filename is left out, and aliases or tags are left out when the note has none. Ranking, strongest first:
-
-1. Exact title or alias
-2. Prefix of a title or alias
-3. Other substring of a title or alias
-4. Filename
-5. Path
-6. Tag only
-
-An empty query lists every note in the workspace. Content search is separate and is not part of this command.
-
-With `search.enrich_files = true`, file search in mini.pick, Snacks, and Telescope matches the same metadata while its directory is inside the workspace. A file whose name does not contain the query still appears when the title, alias, or tag does. Call `setup()` with `enrich_files = false` to restore the previous file pickers.
-
-## Navigation
-
-`gd` follows the Markdown link or wikilink under the cursor. One match opens that note, at the heading or block when the link names one. Several matches open a chooser. A missing note is created only after confirmation. A missing heading opens the existing note and says the location is missing. Off a link, `gd` falls through to an attached LSP.
-
-`:mdw sidebar` shows the outline for the note you came from. `o`, `b`, and `l` switch among outline, backlinks, and outgoing links. Enter jumps to the entry. `:mdw backlinks`, `:mdw outgoing`, and `:mdw outline` put the same results in the quickfix list. `:mdw trouble backlinks` uses Trouble when it is installed.
-
-`:mdw rename new/path.md` shows the references it would rewrite, then updates them and moves the file. It stops when the destination exists or a buffer has unsaved changes.
-
-## Notes and daily notes
-
-`:mdw new path/note.md` confirms the path and creates the note. `:mdw daily` opens today's `YYYY-MM-DD` note, or creates it when that file is missing. A second call opens the same file and does not apply the template again. `:mdw daily prev` and `:mdw daily next` move among daily notes that already exist. `:mdw dailies` opens the note picker with only daily notes, and a query matches them the same way as `:mdw search`.
-
-Daily placement comes from `.obsidian/daily-notes.json` when `daily.folder`, `daily.format`, or `daily.template` is unset. Set `obsidian.import_daily` to false to ignore that file. A format other than `YYYY-MM-DD` is reported.
-
-Templates come from the folder named in `.obsidian/templates.json`. `create.templates` adds or replaces one by name. A single template is used automatically. Several templates open a picker, including a blank note. `:mdw new path/note.md template=Trip` chooses one, and `create.default_template` does the same without a picker. `{{title}}`, `{{date}}`, `{{time}}`, and `{{date:YYYY-MM-DD}}` are filled in. Other `{{fields}}` are left in place and reported.
-
-`:mdw tags work home`, `:mdw aliases yearly plan`, and `:mdw property title Budget` change one frontmatter field and leave the rest of the file alone.
-
-A `.obsidian` directory does not switch the backend. `create.backend` stays `local` and writes the file in Neovim. Set it to `obsidian` to list templates with `obsidian templates` and create with `obsidian vault=<workspace> create path=<file> template=<name>`, passed as arguments. `:mdw new path/note.md backend=obsidian` uses the CLI for that one note. `:mdw obsidian` opens the current note in the app.
-
-## Editing
-
-`:mdw format` sends the buffer to `rumdl` and replaces it only when that command succeeds. The buffer is left unchanged if `rumdl` fails or the text changed while it was running. Formatting on save is off until `format.format_on_save` is true. `:mdw lint` publishes `rumdl` diagnostics. Set `format.lint` to false when another tool already owns those diagnostics.
-
-`:mdw list continue` opens the next item. On an empty item it unnests one level, and a top-level empty item becomes a blank line. A checkbox continues unchecked. A numbered list renumbers the items that follow. `:mdw list nest` and `:mdw list unnest` change the indent of the current item or the selected items and keep the marker (`-`, `*`, `+`, or the number). `:mdw list check` toggles a checkbox, or adds an empty one on a list item that does not have one. Lines inside a fenced code block stay as they are. The plugin does not bind keys for these. Off a list item, a mapped `>>` or `<<` still indents the line, and a mapped `o` or Enter still inserts a normal line.
-
-```lua
-require("mdw").setup({
-  lists = {
-    maps = {
-      continue = "<CR>", -- insert mode
-      open = "o", -- normal mode
-      nest = ">>",
-      unnest = "<<",
-      check = "<leader>x",
-    },
-  },
-})
-```
-
-`:mdw image` saves a clipboard PNG under `assets/` next to the note and inserts a Markdown image. An existing file is not overwritten.
-
-`render.enabled` turns on `render-markdown.nvim` once, when that plugin is installed. `lsp.enabled` attaches `markdown-oxide`. Set `lsp.rename` to keep rename on the language server so `:mdw rename` does not also rewrite links.
-
-A browser preview is not part of this release.
-
-## Compatibility
-
-Neovim 0.11 or newer. Development and tests use Neovim 0.12 on x86_64-linux. The plugin is Lua, so it does not need its own build for each operating system.
-
-Git is used to find the workspace toplevel. Without git, the workspace is the current file's directory. `workspace.root` skips that lookup.
-
-Everything below is optional. Setup still succeeds when the tool is missing:
+Neovim 0.11 or newer. Setup still succeeds when an optional tool is missing.
 
 | Tool | Used for |
 | --- | --- |
-| mini.pick, snacks.nvim, or telescope.nvim | `:mdw search` and the link chooser. Otherwise `vim.ui.select` |
-| rumdl | `:mdw format` and `:mdw lint`. Format-on-save stays off |
-| wl-paste or xclip | `:mdw image` on Linux. Set `edit.clipboard` to another command list on other systems |
+| mini.pick, snacks.nvim, or telescope.nvim | `:mdw search`, `:mdw dailies`, and the link chooser. Otherwise `vim.ui.select` |
+| rumdl | `:mdw format` and `:mdw lint` |
+| wl-paste or xclip | `:mdw image` on Linux. Other systems set `edit.clipboard`, for example `{ "pngpaste" }` |
 | render-markdown.nvim | In-buffer rendering when `render.enabled` is true |
 | markdown-oxide | LSP when `lsp.enabled` is true |
-| Obsidian CLI | Template list and note creation when `create.backend` is `obsidian`, and `:mdw obsidian`. Daily-note search and local templates read `.obsidian` without it |
-| Trouble | `:mdw trouble` only |
+| Obsidian CLI | Template list and note creation when `create.backend` is `"obsidian"`, and `:mdw obsidian` |
+| Trouble | `:mdw trouble` |
 
-`:mdw image` looks for `wl-paste` and then `xclip`. That default is the Linux clipboard. Other systems pass their own reader through `edit.clipboard`, for example `{ "pngpaste" }` on macOS.
+`:checkhealth mdw` reports which of these are available.
 
-## NixVim
+## Installation
 
-The flake output `nixvimModules.default` is a NixVim module. Import it from the NixVim configuration, not from a personal Neovim config checked into this repo:
+Call `setup()` after install. Until then the plugin adds no commands.
+
+### lazy.nvim
+
+```lua
+{
+  "lmdevv/mdw.nvim",
+  config = function()
+    require("mdw").setup()
+  end,
+}
+```
+
+### vim.pack
+
+Neovim 0.12 and newer:
+
+```lua
+vim.pack.add({ "https://github.com/lmdevv/mdw.nvim" })
+require("mdw").setup()
+```
+
+The command name is `:Mdw`. Typing `:mdw` is rewritten to `:Mdw`.
+
+### NixVim
 
 ```nix
 programs.nixvim = {
@@ -172,39 +57,104 @@ programs.nixvim = {
     settings = {
       search.picker = "auto";
     };
-    # Optional. mdw does not fetch these.
     extraPackages = [ pkgs.rumdl pkgs.git ];
   };
 };
 ```
 
-A standalone NixVim configuration uses the same module:
-
-```nix
-nixvim.lib.evalNixvim {
-  inherit system;
-  modules = [
-    inputs.mdw.nixvimModules.default
-    { plugins.mdw.enable = true; }
-  ];
-}
-```
-
-`settings` is passed to `require("mdw").setup()`. `extraPackages` is added to Neovim's `PATH`.
+`settings` is passed to `require("mdw").setup()`. `extraPackages` is added to Neovim's `PATH`. A standalone NixVim configuration imports the same module through `nixvim.lib.evalNixvim`.
 
 ## Try it
 
+On x86_64-linux, with Nix:
+
 ```sh
-nix run .#demo
+nix run github:lmdevv/mdw.nvim
 ```
 
-That starts Neovim with this plugin and `mini.pick` in a fresh copy of the fixture vault. Leader is space. `<leader>sn` searches notes, `<leader>sf` searches files, `<leader>sh` opens health, `<leader>ss` toggles the sidebar, and `<leader>sd` opens today's daily note. `gd` follows a link. In a note, `<CR>` in insert mode and `o` in normal mode continue a list, `>>` and `<<` nest and unnest, and `<leader>x` toggles a checkbox. Those keys are demo mappings, not plugin defaults.
+This starts a separate Neovim with mdw and mini.pick in a writable copy of a small vault. It does not change your own configuration. Leader is space. These keys exist only in the demo:
 
-## Tests
+| Key | Action |
+| --- | --- |
+| `<leader>sn` | Search notes |
+| `<leader>sf` | Search files |
+| `<leader>sh` | Health |
+| `<leader>ss` | Sidebar |
+| `<leader>sd` | Today's daily note |
+| `gd` | Follow the link under the cursor |
+| `<CR>` in insert, `o` in normal | Continue a list item |
+| `>>` / `<<` | Nest or unnest |
+| `<leader>x` | Toggle a checkbox |
+
+## What it does
+
+**Search.** `:mdw search` matches path, filename, title, aliases, and tags. `#parent` matches that tag exactly and does not match `parent/child`. An empty query lists every note. Note bodies stay in your picker's grep. With `search.enrich_files`, file search in mini.pick, Snacks, and Telescope also matches title, alias, and tag while the directory is inside the workspace.
+
+**Links.** `gd` follows the Markdown link or wikilink under the cursor. One match opens the note, at the heading or block when the link names one. Several matches open a chooser. `:mdw sidebar` shows the outline, backlinks, and outgoing links. `:mdw backlinks`, `:mdw outgoing`, and `:mdw outline` fill the quickfix. `:mdw rename new/path.md` previews references, updates them, and moves the file.
+
+**Notes.** `:mdw new path/note.md` asks, then creates the note. `:mdw daily` opens today's `YYYY-MM-DD` note, or creates it when that file is missing. `:mdw daily prev` and `:mdw daily next` move among daily notes that already exist. `:mdw dailies` opens the note picker with only those daily notes.
+
+When `.obsidian/daily-notes.json` or `.obsidian/templates.json` is present, unset daily and template options are filled from those files. The CLI stays off until `create.backend` is `"obsidian"`, or one command passes `backend=obsidian`. One template is used on its own. Several templates open a picker, including a blank note. `template=Trip` skips the picker. `{{title}}`, `{{date}}`, `{{time}}`, and `{{date:YYYY-MM-DD}}` are filled in.
+
+**Editing.** `:mdw list continue`, `nest`, `unnest`, and `check` edit the current list item. Bind them with `lists.maps` if you want keys. `:mdw format` and `:mdw lint` use rumdl. `:mdw image` saves a clipboard PNG under `assets/` and inserts a Markdown image.
+
+## How it works
+
+The workspace is the git toplevel of the file in the current window. A file outside git uses that file's directory. `workspace.root` pins one directory and skips discovery.
+
+The index is Lua. It reads a frontmatter title, otherwise the first heading, otherwise the filename. Aliases come from `aliases` or `alias`. Tags come from `tags` or `tag`, plus inline `#tags` outside fenced code, inline code, and link destinations. A malformed note is skipped and reported. Unsaved buffer text wins over the file on disk. `:mdw index` rebuilds the workspace.
+
+Dot-directories and `node_modules` are skipped. Notes are `.md`, `.markdown`, `.mdc`, `.mdx`, and `.mkd`.
+
+`:help mdw.txt` has the ranking rules, the frontmatter subset, and the full command list.
+
+## Configuration
+
+`setup()` replaces the options. Calling it again does not duplicate commands or autocmds. This is the default:
+
+```lua
+require("mdw").setup({
+  workspace = {
+    root = nil, -- git toplevel of the current file
+  },
+  search = {
+    picker = "auto", -- mini, snacks, telescope, or select
+    enrich_files = false,
+  },
+  create = {
+    backend = "local", -- "obsidian" uses the Obsidian CLI
+    default_template = nil,
+  },
+  daily = {
+    folder = nil, -- filled from .obsidian/daily-notes.json when unset
+    format = nil,
+    template = nil,
+  },
+  lists = {
+    maps = {
+      continue = nil, -- insert mode
+      open = nil, -- normal mode
+      nest = nil,
+      unnest = nil,
+      check = nil,
+    },
+  },
+  format = {
+    lint = true,
+    format_on_save = false,
+  },
+})
+```
+
+Set `obsidian.import_daily` to false to ignore `.obsidian/daily-notes.json`. Set `navigation.gd` to false to leave `gd` to the LSP. Set `lsp.rename` to true to leave rename on markdown-oxide.
+
+## Contributing
 
 ```sh
 make test
 ```
+
+Tests run headless on Neovim. The `nix run` demo is for trying the plugin. Design notes are not part of the published tree.
 
 ## License
 
