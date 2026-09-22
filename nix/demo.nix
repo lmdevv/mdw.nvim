@@ -17,12 +17,10 @@ let
     extraName = "-mdw-test";
     plugins = [
       plugin
-      pkgs.vimPlugins.mini-pick
-      pkgs.vimPlugins.mini-starter
+      pkgs.vimPlugins.snacks-nvim
       pkgs.vimPlugins.mini-statusline
       pkgs.vimPlugins.mini-icons
       pkgs.vimPlugins.mini-clue
-      pkgs.vimPlugins.image-nvim
       pkgs.vimPlugins.catppuccin-nvim
       pkgs.vimPlugins.render-markdown-nvim
       (pkgs.vimPlugins.nvim-treesitter.withPlugins (parsers: [
@@ -68,7 +66,7 @@ let
 
       In the sidebar, o is the outline, b is backlinks, l is outgoing, Enter jumps, and q closes.
 
-      The picture above is drawn by image.nvim when the terminal supports Kitty graphics (kitty, ghostty, or wezterm).
+      The picture above is drawn by snacks.image when the terminal supports Kitty graphics placeholders (kitty or ghostty).
 
       Put the cursor on [[Search]] and press gd.
     '';
