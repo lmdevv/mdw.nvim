@@ -84,12 +84,36 @@ pcall(function()
   })
 end)
 
+local function rescan_images(buf, tries)
+  if not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+  local ok, parser = pcall(vim.treesitter.get_parser, buf, "markdown")
+  local inline = ok and parser and parser:children().markdown_inline or nil
+  if inline == nil then
+    if tries < 20 then
+      vim.defer_fn(function()
+        rescan_images(buf, tries + 1)
+      end, 50)
+    end
+    return
+  end
+  parser:parse(true)
+  vim.api.nvim_exec_autocmds("BufWinEnter", { buffer = buf })
+end
+
 vim.api.nvim_create_autocmd("FileType", {
   pattern = { "markdown", "mdx" },
-  callback = function()
+  callback = function(event)
     vim.wo.conceallevel = 2
     vim.wo.concealcursor = "nc"
-    pcall(vim.treesitter.start)
+    pcall(vim.treesitter.start, event.buf)
+    -- image.nvim scans once, before the markdown inline parser and
+    -- render-markdown extmarks exist. A later buffer switch scans again,
+    -- which is why the picture only appeared after leaving the note.
+    vim.defer_fn(function()
+      rescan_images(event.buf, 0)
+    end, 200)
   end,
 })
 

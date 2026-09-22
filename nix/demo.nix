@@ -50,7 +50,7 @@ let
 
       # Start here
 
-      ![Neovim](assets/welcome.png)
+      ![](assets/welcome.png)
 
       Press space. The next key appears beside it. These keys exist only in this demo.
 
