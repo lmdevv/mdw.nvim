@@ -1,0 +1,112 @@
+*mdw.txt*  Markdown workspace search and indexing
+
+Author: lmdevv
+License: MIT
+
+This help describes the commands and behavior implemented now: workspace
+indexing and metadata search. Later product behavior is specified in PRD.md
+and is not part of this module yet.
+
+==============================================================================
+SETUP                                                            *mdw.setup()*
+
+>lua
+  require("mdw").setup({
+    workspace = { root = nil },
+    search = { enrich_files = false },
+    notes = { extensions = { "md", "markdown", "mdc", "mdx", "mkd" } },
+  })
+<
+
+Calling setup again replaces the configuration and refreshes commands and
+autocmds without duplicating them. Neovim 0.11 or newer is required.
+
+mdw does not set leader mappings.
+
+==============================================================================
+COMMANDS                                                            *mdw-commands*
+
+:Mdw                  Show command usage.
+:Mdw health           Run |:checkhealth| for mdw.
+:Mdw search [query]   Search notes in the current workspace.
+:Mdw index            Rebuild the current workspace index.
+
+==============================================================================
+WORKSPACE                                                          *mdw-workspace*
+
+The workspace is the git toplevel of the file in the current window. A file
+that is not inside a git repository uses that file's directory. An unnamed
+buffer uses the current working directory the same way.
+
+`workspace.root` pins one directory and skips discovery. A relative root is
+resolved from the current working directory. Switching to a buffer from
+another repository switches the workspace used by search.
+
+Dot-directories and `node_modules` are not indexed. Notes are files ending in
+`.md`, `.markdown`, `.mdc`, `.mdx`, or `.mkd`.
+
+==============================================================================
+INDEX                                                                  *mdw-index*
+
+Opening, searching, and indexing do not write notes. A malformed note is
+skipped, reported by health, and does not stop the rest of the workspace from
+indexing.
+
+Title is the frontmatter string `title` when present, otherwise the first ATX
+heading, otherwise the filename stem. Aliases come from `aliases` or `alias`.
+Tags come from `tags` or `tag`, plus inline `#tags` outside fenced code,
+inline code, and link destinations. A wikilink label is not an alias. The
+same scan is used for every supported extension, so a `#` inside JSX can be
+indexed as a tag.
+
+Frontmatter support is a YAML subset: scalars, flow lists, and block lists
+for the keys above. Other keys are ignored when their lines fit that subset.
+Unclosed frontmatter and unsupported lines skip the file.
+
+Open modified buffers are indexed from buffer text, including unsaved edits.
+Unmodified files are indexed from disk. `:Mdw index` rebuilds the workspace.
+Entering an unmodified buffer refreshes that note when the file on disk has
+changed.
+
+==============================================================================
+SEARCH                                                                *mdw-search*
+
+`:Mdw search` uses |mini.pick| when that plugin is installed, and
+|vim.ui.select()| otherwise. The query may contain text and `#tag` filters.
+Every tag filter must match exactly, ignoring case. `#parent` does not match
+the tag `parent/child`.
+
+Text matches a substring of the path, filename, title, aliases, or tags.
+Every text token must match. Matching ignores case until the query contains
+an uppercase letter. Tag filters stay case-insensitive either way.
+
+Rank, from strongest to weakest:
+
+1. Exact title or alias
+2. Prefix of a title or alias
+3. Other substring of a title or alias
+4. Filename
+5. Path
+6. Tag only
+
+Each row is tab-separated: path, then title, then aliases, then tags.
+A title taken from the filename is omitted, and an empty aliases or tags
+field is omitted. Each physical note appears once. An empty query lists the
+notes in the current workspace.
+
+`search.enrich_files` defaults to false. When true, and `mini.pick` is
+available, |MiniPick.builtin.files()| inside the workspace also matches note
+metadata. File search outside the workspace is unchanged. Set the option back
+to false and call setup to restore the previous picker functions.
+
+Full-content search is a separate action and is not implemented here.
+
+==============================================================================
+HEALTH                                                                *mdw-health*
+
+:checkhealth mdw
+
+Reports the Neovim version, workspace root, note count, skipped files,
+mini.pick availability, and whether file-search enrichment is active.
+
+vim:tw=78:ts=8:noet:ft=help:norl:
