@@ -502,6 +502,73 @@ add("mini.pick enrichment wraps once and can be removed", function()
   package.loaded["mini.pick"] = nil
 end)
 
+add("snacks and telescope file search use note metadata", function()
+  local dir = tmp()
+  write(dir, "x.md", "---\naliases:\n  - yearly\ntags: [parent/child]\n---\n# Secret\n")
+  write(dir, "readme.txt", "hello\n")
+  local snacks_seen = nil
+  local snacks_pick = function(source, opts)
+    snacks_seen = opts
+    return source
+  end
+  package.loaded["snacks"] = { picker = { pick = snacks_pick } }
+  local telescope_seen = nil
+  local find_files = function(opts)
+    telescope_seen = opts
+  end
+  package.loaded["telescope.builtin"] = { find_files = find_files, fd = find_files }
+  package.loaded["telescope.config"] = {
+    values = {
+      file_sorter = function()
+        return {
+          scoring_function = function(_, prompt, line)
+            if prompt == "" or (line and tostring(line):find(prompt, 1, true)) then
+              return 5
+            end
+            return -1
+          end,
+        }
+      end,
+    },
+  }
+  package.loaded["mini.pick"] = nil
+  local mdw = require("mdw")
+  vim.cmd.cd(dir)
+  mdw.setup({ workspace = { root = dir }, search = { enrich_files = true } })
+  require("snacks").picker.pick("files", {})
+  local yearly = snacks_seen.finder(nil, { filter = { search = "yearly", pattern = "" } })
+  eq(#yearly, 1, "snacks file search finds an alias")
+  eq(yearly[1].text, "x.md", "snacks alias match is the note file")
+  local parent = snacks_seen.finder(nil, { filter = { search = "#parent", pattern = "" } })
+  eq(#parent, 0, "snacks #parent does not match parent/child")
+  local child = snacks_seen.finder(nil, { filter = { search = "#parent/child", pattern = "" } })
+  eq(child[1].text, "x.md", "snacks matches the whole tag")
+  snacks_seen = nil
+  require("snacks").picker.pick("files", { cwd = "/tmp" })
+  eq(snacks_seen.finder, nil, "snacks file search outside the workspace stays ordinary")
+
+  require("telescope.builtin").find_files({})
+  local score = telescope_seen.sorter.scoring_function({}, "yearly", "x.md", { path = dir .. "/x.md" })
+  truthy(score < 0, "telescope keeps an alias match")
+  eq(
+    telescope_seen.sorter.scoring_function({}, "#parent", "x.md", { path = dir .. "/x.md" }),
+    -1,
+    "telescope #parent does not match parent/child"
+  )
+  telescope_seen = nil
+  require("telescope.builtin").find_files({ cwd = "/tmp" })
+  eq(telescope_seen.sorter, nil, "telescope file search outside the workspace stays ordinary")
+
+  mdw.setup({ workspace = { root = dir }, search = { enrich_files = false } })
+  eq(require("snacks").picker.pick, snacks_pick, "disabling enrichment restores snacks")
+  eq(require("telescope.builtin").find_files, find_files, "disabling enrichment restores telescope")
+  package.loaded["snacks"] = nil
+  package.loaded["telescope.builtin"] = nil
+  package.loaded["telescope.config"] = nil
+  package.loaded["mini.pick"] = nil
+  vim.cmd.cd(saved_cwd)
+end)
+
 add("snacks and telescope show ranked note search", function()
   local dir = tmp()
   write(dir, "plan.md", "---\ntitle: Budget\ntags: work\n---\n# Budget\n")

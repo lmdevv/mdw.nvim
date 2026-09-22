@@ -21,7 +21,7 @@ require("mdw").setup({
 
 `setup()` can be called again. It replaces the options and does not duplicate commands or autocmds. mdw does not create leader mappings.
 
-Install `mini.pick` before enabling `search.enrich_files` if you want that picker wrapped during setup.
+Install mini.pick, Snacks, or Telescope before enabling `search.enrich_files` if you want that file picker wrapped during setup.
 
 ## Commands
 
@@ -90,7 +90,7 @@ Results are one row per note. Columns are separated by tabs, in this order: path
 
 An empty query lists every note in the workspace. Content search is separate and is not part of this command.
 
-With `search.enrich_files = true`, `MiniPick.builtin.files()` matches the same metadata while its directory is inside the workspace. Call `setup()` with `enrich_files = false` to restore the previous file picker.
+With `search.enrich_files = true`, file search in mini.pick, Snacks, and Telescope matches the same metadata while its directory is inside the workspace. A file whose name does not contain the query still appears when the title, alias, or tag does. Call `setup()` with `enrich_files = false` to restore the previous file pickers.
 
 ## Navigation
 

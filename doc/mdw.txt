@@ -122,10 +122,12 @@ A title taken from the filename is omitted, and an empty aliases or tags
 field is omitted. Each physical note appears once. An empty query lists the
 notes in the current workspace.
 
-`search.enrich_files` defaults to false. When true, and `mini.pick` is
-available, |MiniPick.builtin.files()| inside the workspace also matches note
-metadata. File search outside the workspace is unchanged. Set the option back
-to false and call setup to restore the previous picker functions.
+`search.enrich_files` defaults to false. When true, file search from
+mini.pick, Snacks, and Telescope matches note metadata while its directory
+is inside the workspace. A file whose name does not contain the query still
+appears when the title, alias, or tag does. File search outside the workspace
+is unchanged. Set the option back to false and call setup to restore the
+previous picker functions.
 
 Full-content search is a separate action and is not implemented here.
 

@@ -86,7 +86,7 @@ function M.check()
   if report.enrich and report.enrich_wrapped then
     vim.health.ok("file-search enrichment is enabled")
   elseif report.enrich then
-    vim.health.warn("search.enrich_files is set, but mini.pick could not be wrapped")
+    vim.health.warn("search.enrich_files is set, but no file picker could be wrapped")
   else
     vim.health.info("file-search enrichment is off")
   end

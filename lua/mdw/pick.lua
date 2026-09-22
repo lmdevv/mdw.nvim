@@ -8,7 +8,12 @@ local state = {
   active = false,
   original_files = nil,
   original_registry = nil,
+  snacks_pick = nil,
+  telescope_find_files = nil,
+  telescope_fd = nil,
 }
+
+local file_list_cache = {}
 
 function M.wrapped()
   return state.active
@@ -122,6 +127,166 @@ local function inject(local_opts, opts)
   return local_opts, merged
 end
 
+local function filename_hits(stritems, prompt)
+  prompt = plain_prompt(prompt or "")
+  local sensitive = prompt:find("%u") ~= nil
+  local needle = sensitive and prompt or prompt:lower()
+  local inds = {}
+  for index, item in ipairs(stritems) do
+    if needle == "" then
+      inds[#inds + 1] = index
+    else
+      local hay = sensitive and item or item:lower()
+      if hay:find(needle, 1, true) then
+        inds[#inds + 1] = index
+      end
+    end
+  end
+  return inds
+end
+
+local function list_files(cwd, opts)
+  local hidden = opts and opts.hidden == true
+  local key = cwd .. "\0" .. (hidden and "1" or "0")
+  if file_list_cache[key] then
+    return file_list_cache[key]
+  end
+  local out = {}
+  local function scan(dir, rel)
+    local handle = vim.uv.fs_scandir(dir)
+    if not handle then
+      return
+    end
+    while true do
+      local name, kind = vim.uv.fs_scandir_next(handle)
+      if not name then
+        break
+      end
+      if name ~= ".git" and (hidden or name:sub(1, 1) ~= ".") then
+        local path = dir .. "/" .. name
+        local child = rel == "" and name or (rel .. "/" .. name)
+        if kind == "directory" then
+          scan(path, child)
+        elseif kind == "file" or kind == "link" then
+          out[#out + 1] = child
+        end
+      end
+    end
+  end
+  scan(cwd, "")
+  table.sort(out)
+  file_list_cache[key] = out
+  return out
+end
+
+local function chars(prompt)
+  prompt = plain_prompt(prompt or "")
+  local query = {}
+  for index = 1, #prompt do
+    query[index] = prompt:sub(index, index)
+  end
+  return query
+end
+
+local function in_workspace(cwd)
+  local ok, root = pcall(workspace.resolve, 0)
+  if not ok or not root then
+    return nil, cwd
+  end
+  cwd = workspace.normalize(cwd or vim.fn.getcwd())
+  if not workspace.contains(root, cwd) then
+    return nil, cwd
+  end
+  return root, cwd
+end
+
+local function rank_map(root, prompt)
+  local map = {}
+  for _, hit in ipairs(search.query(root, plain_prompt(prompt or ""))) do
+    map[workspace.normalize(hit.path)] = hit.rank
+  end
+  return map
+end
+
+local function snacks_opts(opts)
+  opts = vim.tbl_extend("force", {}, opts or {})
+  local root, cwd = in_workspace(opts.cwd)
+  if not root then
+    return opts
+  end
+  opts.cwd = cwd
+  opts.live = true
+  opts.pattern = function()
+    return ""
+  end
+  opts.matcher = vim.tbl_extend("force", opts.matcher or {}, { fuzzy = false, sort_empty = false })
+  opts.finder = function(_, ctx)
+    local prompt = ""
+    if ctx and ctx.filter then
+      prompt = ctx.filter.search ~= "" and ctx.filter.search or ctx.filter.pattern or ""
+    end
+    local paths = list_files(cwd, opts)
+    local all = {}
+    for index = 1, #paths do
+      all[index] = index
+    end
+    local order = M.enrich_match(paths, all, chars(prompt), function(stritems, _, query)
+      return filename_hits(stritems, table.concat(query or {}))
+    end, root, cwd)
+    local items = {}
+    for _, index in ipairs(order) do
+      local rel = paths[index]
+      items[#items + 1] = { text = rel, file = rel, cwd = cwd }
+    end
+    return items
+  end
+  return opts
+end
+
+local function telescope_opts(opts)
+  opts = vim.tbl_extend("force", {}, opts or {})
+  local root, cwd = in_workspace(opts.cwd)
+  if not root then
+    return opts
+  end
+  opts.cwd = cwd
+  local base = opts.sorter
+  if base == nil then
+    local ok, conf = pcall(require, "telescope.config")
+    if ok and conf.values and type(conf.values.file_sorter) == "function" then
+      base = conf.values.file_sorter(opts)
+    end
+  end
+  local inner = base and base.scoring_function or nil
+  local sorter = base or {}
+  local maps = {}
+  sorter.scoring_function = function(self, prompt, line, entry)
+    prompt = plain_prompt(prompt or "")
+    local map = maps[prompt]
+    if not map then
+      map = rank_map(root, prompt)
+      maps[prompt] = map
+    end
+    local path = entry and (entry.path or entry.filename or entry.value) or line
+    local rank = map[absolute_item(cwd, path or "")]
+    if rank then
+      return -1000 + rank
+    end
+    if inner then
+      return inner(self, prompt, line, entry)
+    end
+    if prompt == "" then
+      return 1
+    end
+    if line and tostring(line):find(prompt, 1, true) then
+      return 1
+    end
+    return -1
+  end
+  opts.sorter = sorter
+  return opts
+end
+
 function M.configure(enabled)
   if not enabled then
     if not state.active then
@@ -136,30 +301,80 @@ function M.configure(enabled)
         mini.registry.files = state.original_registry
       end
     end
+    if state.snacks_pick then
+      local snacks_ok, snacks = pcall(require, "snacks")
+      if snacks_ok and type(snacks.picker) == "table" then
+        snacks.picker.pick = state.snacks_pick
+      end
+    end
+    if state.telescope_find_files or state.telescope_fd then
+      local telescope_ok, builtin = pcall(require, "telescope.builtin")
+      if telescope_ok then
+        if state.telescope_find_files then
+          builtin.find_files = state.telescope_find_files
+        end
+        if state.telescope_fd then
+          builtin.fd = state.telescope_fd
+        end
+      end
+    end
     state.active = false
     state.original_files = nil
     state.original_registry = nil
+    state.snacks_pick = nil
+    state.telescope_find_files = nil
+    state.telescope_fd = nil
+    file_list_cache = {}
     return
   end
   if state.active then
     return
   end
+  local wrapped = false
   local ok, mini = pcall(require, "mini.pick")
-  if not ok or type(mini.builtin) ~= "table" or type(mini.builtin.files) ~= "function" then
-    return
-  end
-  state.original_files = mini.builtin.files
-  state.original_registry = mini.registry and mini.registry.files or nil
-  mini.builtin.files = function(local_opts, opts)
-    local_opts, opts = inject(local_opts, opts)
-    return state.original_files(local_opts, opts)
-  end
-  if mini.registry then
-    mini.registry.files = function(local_opts)
-      return mini.builtin.files(local_opts)
+  if ok and type(mini.builtin) == "table" and type(mini.builtin.files) == "function" then
+    state.original_files = mini.builtin.files
+    state.original_registry = mini.registry and mini.registry.files or nil
+    mini.builtin.files = function(local_opts, opts)
+      local_opts, opts = inject(local_opts, opts)
+      return state.original_files(local_opts, opts)
     end
+    if mini.registry then
+      mini.registry.files = function(local_opts)
+        return mini.builtin.files(local_opts)
+      end
+    end
+    wrapped = true
   end
-  state.active = true
+  local snacks_ok, snacks = pcall(require, "snacks")
+  if snacks_ok and type(snacks.picker) == "table" and type(snacks.picker.pick) == "function" then
+    state.snacks_pick = snacks.picker.pick
+    snacks.picker.pick = function(source, opts)
+      if source == "files" then
+        return state.snacks_pick(source, snacks_opts(opts))
+      end
+      if type(source) == "table" and opts == nil and (source.source == "files" or source.finder == "files") then
+        return state.snacks_pick(snacks_opts(source))
+      end
+      return state.snacks_pick(source, opts)
+    end
+    wrapped = true
+  end
+  local telescope_ok, builtin = pcall(require, "telescope.builtin")
+  if telescope_ok and type(builtin.find_files) == "function" then
+    local original = builtin.find_files
+    state.telescope_find_files = original
+    local wrapped_find = function(opts)
+      return original(telescope_opts(opts))
+    end
+    builtin.find_files = wrapped_find
+    if builtin.fd == nil or builtin.fd == original then
+      state.telescope_fd = original
+      builtin.fd = wrapped_find
+    end
+    wrapped = true
+  end
+  state.active = wrapped
 end
 
 local function narrow(items, prompt)
