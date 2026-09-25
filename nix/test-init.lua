@@ -110,8 +110,8 @@ vim.keymap.set("n", "<leader>md", function()
 end, { desc = "Today's daily note" })
 
 vim.keymap.set("n", "<leader>q", function()
-  vim.cmd("qa")
-end, { desc = "Quit" })
+  vim.cmd("qa!")
+end, { desc = "Quit all without saving" })
 
 local miniclue = require("mini.clue")
 miniclue.setup({

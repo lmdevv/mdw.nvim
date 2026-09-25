@@ -98,7 +98,7 @@ This starts a separate Neovim in a writable copy of a walkthrough vault. It does
 | `<CR>` in insert, `o` in normal | Continue a list item |
 | `>>` / `<<` | Nest or unnest |
 | `<leader>mt` | Toggle a checkbox |
-| `<leader>q` | Quit |
+| `<leader>q` | Quit all without saving changes |
 
 ## What it does
 

@@ -63,7 +63,7 @@ let
       | Enter in insert, o | Continue a list item |
       | >> and << | Nest or unnest |
       | space m t | Toggle a checkbox |
-      | space q | Quit |
+      | space q | Quit all without saving changes |
 
       In the sidebar, o is the outline, b is backlinks, l is outgoing, Enter jumps, and q closes.
 
