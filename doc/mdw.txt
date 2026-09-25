@@ -1,7 +1,7 @@
 *mdw.txt*  Markdown workspace tools
 
 Author: lmdevv
-Version: 0.0.2
+Version: 0.0.3
 License: MIT
 
 mdw searches notes, follows links, and edits lists and frontmatter. Optional
