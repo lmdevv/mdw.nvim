@@ -117,15 +117,18 @@ local function jump()
     return
   end
   local target = source_window()
-  local function edit()
-    vim.cmd.edit(vim.fn.fnameescape(item.path))
+  local function show_item()
+    local current_path = vim.api.nvim_buf_get_name(0)
+    if workspace.normalize(current_path) ~= workspace.normalize(item.path) then
+      vim.cmd("hide edit " .. vim.fn.fnameescape(item.path))
+    end
     pcall(vim.api.nvim_win_set_cursor, 0, { item.line or 1, math.max((item.col or 1) - 1, 0) })
   end
   if target then
-    vim.api.nvim_win_call(target, edit)
+    vim.api.nvim_win_call(target, show_item)
     vim.api.nvim_set_current_win(target)
   else
-    edit()
+    show_item()
   end
 end
 

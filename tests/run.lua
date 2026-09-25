@@ -933,6 +933,51 @@ add("sidebar all view stacks outline, backlinks, and outgoing links", function()
   sidebar.close()
 end)
 
+add("sidebar jumps preserve unsaved note buffers", function()
+  local dir = tmp()
+  local source = write(dir, "source.md", "# Initial\n\nSee [[dest]].\n")
+  local dest = write(dir, "dest.md", "# Dest\n")
+  local mdw = require("mdw")
+  mdw.setup({ workspace = { root = dir } })
+  mdw.rebuild()
+  vim.cmd.edit(vim.fn.fnameescape(source))
+  local source_buf = vim.api.nvim_get_current_buf()
+  local source_win = vim.api.nvim_get_current_win()
+  vim.api.nvim_buf_set_lines(source_buf, -1, -1, false, { "", "## Unsaved" })
+  vim.api.nvim_exec_autocmds("TextChanged", { buffer = source_buf })
+
+  local sidebar = require("mdw.sidebar")
+  sidebar.open()
+  local outline_win = vim.api.nvim_get_current_win()
+  local outline_buf = vim.api.nvim_get_current_buf()
+  local outline = vim.api.nvim_buf_get_lines(outline_buf, 0, -1, false)
+  same(outline, { "Outline", "", "Initial", "  Unsaved" }, "outline includes the unsaved heading")
+  vim.api.nvim_win_set_cursor(outline_win, { 4, 0 })
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "xt", false)
+  eq(vim.api.nvim_get_current_win(), source_win, "outline jump returns to the note window")
+  eq(vim.api.nvim_get_current_buf(), source_buf, "outline jump keeps the same buffer")
+  eq(vim.api.nvim_win_get_cursor(source_win)[1], 5, "outline jump reaches the unsaved heading")
+  eq(vim.bo[source_buf].modified, true, "outline jump keeps unsaved changes")
+  eq(vim.fn.readfile(source)[#vim.fn.readfile(source)], "See [[dest]].", "outline jump does not save the note")
+
+  local links_win = nil
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local buf = vim.api.nvim_win_get_buf(win)
+    if vim.api.nvim_buf_get_name(buf) == "mdw://sidebar/outgoing" then
+      links_win = win
+    end
+  end
+  truthy(links_win, "links pane remains open")
+  vim.api.nvim_set_current_win(links_win)
+  vim.api.nvim_win_set_cursor(links_win, { 3, 0 })
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "xt", false)
+  eq(vim.api.nvim_buf_get_name(0), dest, "link jump opens the destination")
+  eq(vim.bo[source_buf].modified, true, "link jump keeps the source buffer unsaved")
+  eq(vim.api.nvim_buf_get_lines(source_buf, 4, 5, false)[1], "## Unsaved", "unsaved text stays in memory")
+  sidebar.close()
+  vim.api.nvim_buf_delete(source_buf, { force = true })
+end)
+
 add("rename updates references and refuses dirty buffers", function()
   local dir = tmp()
   write(dir, "exact.md", "# Exact\n\nSelf [[exact|Keep]].\n")
