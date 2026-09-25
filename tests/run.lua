@@ -466,7 +466,10 @@ add("mini.pick enrichment wraps once and can be removed", function()
   package.loaded["mini.pick"] = {
     builtin = { files = original_files },
     registry = { files = original_registry },
-    default_match = function(stritems, inds, query)
+    default_match = function(stritems, inds, query, opts)
+      if not (opts and opts.sync) then
+        return nil -- mini.pick matches asynchronously while a picker is active.
+      end
       local prompt = table.concat(query)
       local out = {}
       for _, index in ipairs(inds) do
@@ -489,6 +492,12 @@ add("mini.pick enrichment wraps once and can be removed", function()
   local stritems = { "x.md", "readme.txt" }
   local matched = captured.source.match(stritems, { 1, 2 }, { "y", "e", "a", "r", "l", "y" })
   same(matched, { 1 }, "alias match is added to file search")
+  same(captured.source.match(stritems, { 1, 2 }, {}), { 1, 2 }, "empty query keeps notes and other files")
+  same(
+    captured.source.match(stritems, { 1, 2 }, { "r", "e", "a", "d", "m", "e" }),
+    { 2 },
+    "ordinary file name matches remain visible"
+  )
   eq(package.loaded["mini.pick"].registry.files(), "original", "registry.files uses the enriched builtin")
 
   vim.cmd.cd("/tmp")

@@ -67,7 +67,8 @@ function M.enrich_match(stritems, inds, query, prior, root, cwd)
     base = prior(stritems, inds, query) or {}
   else
     local mini = require("mini.pick")
-    base = mini.default_match(stritems, inds, query) or {}
+    -- The asynchronous matcher returns nil while a picker is open.
+    base = mini.default_match(stritems, inds, query, { sync = true }) or {}
   end
   if root == nil then
     return base
