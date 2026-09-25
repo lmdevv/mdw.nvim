@@ -854,6 +854,85 @@ add("backlinks, outgoing links, sidebar, and quickfix share one index", function
   sidebar.close()
 end)
 
+add("sidebar all view stacks outline, backlinks, and outgoing links", function()
+  local dir = tmp()
+  local source = write(dir, "source.md", "# Source\n\nSee [[dest]].\n")
+  local dest = write(dir, "dest.md", "# Dest\n\nBack to [[source]].\n")
+  local mdw = require("mdw")
+  mdw.setup({ workspace = { root = dir } })
+  mdw.rebuild()
+  vim.cmd.edit(vim.fn.fnameescape(source))
+  local sidebar = require("mdw.sidebar")
+  sidebar.open()
+
+  local function sidebar_windows()
+    local panes = {}
+    local legend = nil
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+      local buf = vim.api.nvim_win_get_buf(win)
+      if vim.bo[buf].filetype == "mdw-sidebar" then
+        local pane = { win = win, buf = buf, pos = vim.api.nvim_win_get_position(win) }
+        if vim.b[buf].mdw_legend then
+          legend = pane
+        else
+          panes[#panes + 1] = pane
+        end
+      end
+    end
+    table.sort(panes, function(a, b)
+      return a.pos[1] < b.pos[1]
+    end)
+    return panes, legend
+  end
+
+  local panes, legend = sidebar_windows()
+  eq(#panes, 3, "sidebar opens with all three views")
+  truthy(legend, "sidebar has a key legend")
+  same(vim.api.nvim_buf_get_lines(legend.buf, 0, -1, false), {
+    "a All  o Outline  b Backlinks",
+    "l Links  Enter Open  q Close",
+  }, "legend shows the sidebar keys")
+  eq(vim.api.nvim_win_get_height(legend.win), 2, "legend stays compact")
+  eq(vim.wo[legend.win].statusline, " ", "legend hides its internal buffer name")
+  truthy(legend.pos[1] > panes[3].pos[1], "legend is below the three views")
+  for index, view in ipairs({ "Outline", "Backlinks", "Links" }) do
+    local pane = panes[index]
+    eq(pane.pos[2], panes[1].pos[2], "all views share the sidebar column")
+    if index > 1 then
+      truthy(pane.pos[1] > panes[index - 1].pos[1], "all views are stacked vertically")
+    end
+    local lines = vim.api.nvim_buf_get_lines(pane.buf, 0, -1, false)
+    eq(lines[1], view, "pane title omits the file name")
+    eq(vim.wo[pane.win].statusline, " ", "pane hides its internal buffer name")
+    truthy(vim.b[pane.buf].mdw_items[3] ~= nil, view .. " pane has a jump target")
+  end
+
+  vim.api.nvim_set_current_win(panes[3].win)
+  vim.api.nvim_win_set_cursor(panes[3].win, { 3, 0 })
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "xt", false)
+  eq(vim.api.nvim_buf_get_name(0), dest, "Enter in outgoing opens the linked note")
+  for _, pane in ipairs(panes) do
+    eq(vim.b[pane.buf].mdw_source, dest, "all panes follow the current note")
+  end
+  vim.cmd.edit(vim.fn.fnameescape(source))
+
+  vim.api.nvim_set_current_win(panes[2].win)
+  vim.cmd("normal o")
+  local single, single_legend = sidebar_windows()
+  eq(#single, 1, "o returns to the single outline view")
+  truthy(single_legend, "legend remains in the single view")
+  eq(vim.api.nvim_buf_get_lines(0, 0, 1, false)[1], "Outline", "outline is shown")
+  vim.cmd("normal a")
+  eq(#sidebar_windows(), 3, "a restores all three views")
+  vim.cmd("normal b")
+  eq(#sidebar_windows(), 1, "b shows only backlinks")
+  vim.cmd("normal q")
+  eq(sidebar.is_open(), false, "q closes the sidebar")
+  sidebar.open()
+  eq(#sidebar_windows(), 3, "reopening starts in the all view")
+  sidebar.close()
+end)
+
 add("rename updates references and refuses dirty buffers", function()
   local dir = tmp()
   write(dir, "exact.md", "# Exact\n\nSelf [[exact|Keep]].\n")

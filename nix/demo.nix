@@ -65,7 +65,7 @@ let
       | space m t | Toggle a checkbox |
       | space q | Quit all without saving changes |
 
-      In the sidebar, o is the outline, b is backlinks, l is outgoing, Enter jumps, and q closes.
+      The sidebar opens with all three views and a key legend at the bottom. Press o, b, or l for one view, and a to restore all three.
 
       The picture above is drawn by snacks.image when the terminal supports Kitty graphics placeholders (kitty or ghostty).
 
@@ -151,7 +151,7 @@ let
 
       Press space m b. This window is the outline.
 
-      Press b for backlinks. [[Links]] points here. Press l for outgoing links. Enter jumps. q closes.
+      The sidebar opens with outline, backlinks, and outgoing links stacked above a key legend. Press o, b, or l for one view, and a to restore all three. Enter jumps. q closes.
 
       `:mdw outline`, `:mdw backlinks`, and `:mdw outgoing` put the same lists in the quickfix.
 

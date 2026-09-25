@@ -104,7 +104,7 @@ This starts a separate Neovim in a writable copy of a walkthrough vault. It does
 
 **Search.** `:mdw search` matches path, filename, title, aliases, and tags. `#parent` matches that tag exactly and does not match `parent/child`. An empty query lists every note. Note bodies stay in your picker's grep. With `search.enrich_files`, file search in mini.pick, Snacks, and Telescope also matches title, alias, and tag while the directory is inside the workspace.
 
-**Links.** `gd` follows the Markdown link or wikilink under the cursor. One match opens the note, at the heading or block when the link names one. Several matches open a chooser. `:mdw sidebar` shows the outline, backlinks, and outgoing links. `:mdw backlinks`, `:mdw outgoing`, and `:mdw outline` fill the quickfix. `:mdw rename new/path.md` previews references, updates them, and moves the file.
+**Links.** `gd` follows the Markdown link or wikilink under the cursor. One match opens the note, at the heading or block when the link names one. Several matches open a chooser. `:mdw sidebar` opens with outline, backlinks, and outgoing links stacked in three panes. A legend at the bottom lists the keys: `a` restores all panes, `o`, `b`, and `l` show one view, Enter opens a result, and `q` closes the sidebar. `:mdw backlinks`, `:mdw outgoing`, and `:mdw outline` fill the quickfix. `:mdw rename new/path.md` previews references, updates them, and moves the file.
 
 **Notes.** `:mdw new path/note.md` asks, then creates the note. `:mdw daily` opens today's `YYYY-MM-DD` note, or creates it when that file is missing. `:mdw daily prev` and `:mdw daily next` move among daily notes that already exist. `:mdw dailies` opens the note picker with only those daily notes.
 
