@@ -80,8 +80,13 @@ function M.enrich_match(stritems, inds, query, prior, root, cwd)
     wanted[workspace.normalize(hit.path)] = hit
   end
   local by_index = {}
+  -- Mini lowercases stritems for ignorecase matching. Resolve paths from the
+  -- original items instead so mixed-case filenames still match the index.
+  local ok, mini = pcall(require, "mini.pick")
+  local items = ok and type(mini.get_picker_items) == "function" and mini.get_picker_items() or nil
   for index, stritem in ipairs(stritems) do
-    local path = absolute_item(cwd, stritem)
+    local original = items and items[index]
+    local path = absolute_item(cwd, type(original) == "string" and original or stritem)
     local hit = wanted[path]
     if hit then
       by_index[index] = hit.rank

@@ -498,6 +498,28 @@ add("mini.pick enrichment wraps once and can be removed", function()
     { 2 },
     "ordinary file name matches remain visible"
   )
+  write(dir, "Mixed Case.md", "---\naliases: [playback]\n---\n# Secret Title\n")
+  require("mdw.index").rebuild(dir)
+  package.loaded["mini.pick"].get_picker_items = function()
+    return { "Mixed Case.md", "readme.txt" }
+  end
+  local lowered = { "mixed case.md", "readme.txt" }
+  same(
+    captured.source.match(lowered, { 1, 2 }, vim.fn.split("playback", "\\zs")),
+    { 1 },
+    "alias matches use original paths when mini lowercases stritems"
+  )
+  same(
+    captured.source.match(lowered, { 1, 2 }, vim.fn.split("secret title", "\\zs")),
+    { 1 },
+    "title matches use original paths when mini lowercases stritems"
+  )
+  same(
+    captured.source.match(lowered, { 1, 2 }, vim.fn.split("readme", "\\zs")),
+    { 2 },
+    "ordinary filename matches still work with original picker items"
+  )
+  package.loaded["mini.pick"].get_picker_items = nil
   eq(package.loaded["mini.pick"].registry.files(), "original", "registry.files uses the enriched builtin")
 
   vim.cmd.cd("/tmp")
