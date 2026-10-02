@@ -15,7 +15,7 @@ Neovim 0.11 or newer. Setup still succeeds when an optional tool is missing.
 | wl-paste or xclip | `:mdw image` on Linux. Other systems set `edit.clipboard`, for example `{ "pngpaste" }` |
 | render-markdown.nvim | In-buffer rendering when `render.enabled` is true |
 | markdown-oxide | LSP when `lsp.enabled` is true |
-| Obsidian CLI | Template list and note creation when `create.backend` is `"obsidian"`, and `:mdw obsidian` |
+| Obsidian CLI | Preview vault notes with `:mdw` or `:mdw preview`, open with `:mdw obsidian`, and create notes when `create.backend` is `"obsidian"` |
 | Trouble | `:mdw trouble` |
 
 `:checkhealth mdw` reports which of these are available.
@@ -45,6 +45,7 @@ require("mdw").setup()
 ```
 
 The command name is `:Mdw`. Typing `:mdw` is rewritten to `:Mdw`.
+Inside an Obsidian vault, `:mdw` opens the current saved note in Obsidian's Reading view. Outside a vault it shows command usage.
 
 ### NixVim
 
@@ -105,7 +106,11 @@ This starts a separate Neovim in a writable copy of a walkthrough vault. It does
 
 **Notes.** `:mdw new path/note.md` asks, then creates the note. `:mdw daily` opens today's `YYYY-MM-DD` note, or creates it when that file is missing. `:mdw daily prev` and `:mdw daily next` move among daily notes that already exist. `:mdw dailies` opens the note picker with only those daily notes.
 
-When `.obsidian/daily-notes.json` or `.obsidian/templates.json` is present, unset daily and template options are filled from those files. The CLI stays off until `create.backend` is `"obsidian"`, or one command passes `backend=obsidian`. One template is used on its own. Several templates open a picker, including a blank note. `template=Trip` skips the picker. `{{title}}`, `{{date}}`, `{{time}}`, and `{{date:YYYY-MM-DD}}` are filled in.
+When `.obsidian/daily-notes.json` or `.obsidian/templates.json` is present, unset daily and template options are filled from those files. Note creation uses the CLI when `create.backend` is `"obsidian"`, or one command passes `backend=obsidian`. One template is used on its own. Several templates open a picker, including a blank note. `template=Trip` skips the picker. `{{title}}`, `{{date}}`, `{{time}}`, and `{{date:YYYY-MM-DD}}` are filled in.
+
+**Obsidian preview.** `:mdw` and `:mdw preview` open the current note in the desktop app and select Reading view. `:mdw obsidian` opens it using the app's existing view mode. The nearest parent containing a `.obsidian` directory identifies the vault, including vaults nested inside a Git repository. Save the note with `:write` first; these commands do not save buffer changes. Obsidian reflects subsequent saves while the note is open.
+
+Enable **Settings → General → Command line interface** in Obsidian 1.12.7 or newer, and open the folder as a vault in Obsidian at least once. Keep the desktop app running; some installations cannot launch it through the CLI. See the [Obsidian CLI setup guide](https://help.obsidian.md/cli). mdw prefers `obsidian-cli` when that executable is available, otherwise `obsidian`. Set `obsidian.command` to a custom executable path if needed. Preview uses the CLI's `open` and `eval` commands; it requires no community plugin.
 
 **Editing.** `:mdw list continue`, `nest`, `unnest`, and `check` edit the current list item. Bind them with `lists.maps` if you want keys. `:mdw format` and `:mdw lint` use rumdl. `:mdw image` saves a clipboard PNG under `assets/` and inserts a Markdown image.
 

@@ -28,7 +28,8 @@ version and optional tools.
 ==============================================================================
 COMMANDS                                                            *mdw-commands*
 
-:mdw                         Show command usage.
+:mdw                         Preview the current note in an Obsidian vault;
+                             otherwise show command usage.
 :mdw health                  Run |:checkhealth| for mdw.
 :mdw search [query]          Search notes in the current workspace.
 :mdw index                   Rebuild the current workspace index.
@@ -49,6 +50,7 @@ COMMANDS                                                            *mdw-command
 :mdw aliases {names}         Replace aliases.
 :mdw tags {names}            Replace tags.
 :mdw obsidian                Open the current note in Obsidian.
+:mdw preview                 Open the current note in Obsidian Reading view.
 :mdw format                  Format the buffer with rumdl.
 :mdw lint                    Publish rumdl diagnostics.
 :mdw image                   Paste a clipboard image.
@@ -176,10 +178,37 @@ A multiline YAML value is left unchanged and reported.
 `create.backend` stays `local` when the workspace contains `.obsidian`.
 `local` writes the file in Neovim. `obsidian` lists templates with
 `obsidian templates` and creates with
-`obsidian vault={workspace} create path={file}` without a shell.
+`obsidian create path={file}` from the workspace directory without a shell.
 `:mdw new {path} backend=obsidian` and `:mdw daily backend=local` override
 that for one command. `:mdw obsidian` opens the current note in the app.
 Local commands keep working when the CLI is absent.
+
+==============================================================================
+OBSIDIAN PREVIEW                                                  *mdw-preview*
+
+`:mdw` inside a vault and `:mdw preview` open the current note in the Obsidian
+desktop app and select Reading view. `:mdw obsidian` opens the note using the
+app's existing view mode. Outside a vault, bare `:mdw` shows command usage.
+
+The vault is the nearest parent directory containing a `.obsidian` directory.
+Preview uses the current buffer's vault even when the Git toplevel or pinned
+workspace differs. Git is not required. The CLI runs from the vault directory
+with the note's exact relative path. Save with `:write` first; a modified or
+new buffer is reported and left unchanged. Later saves update the open note
+through Obsidian's file watching.
+
+Use Obsidian 1.12.7 or newer and enable Settings > General > Command line
+interface. Open the folder as a vault in Obsidian at least once. Keep the app
+running; some installations cannot launch it through the CLI. See:
+https://help.obsidian.md/cli
+
+mdw prefers `obsidian-cli` when available, otherwise `obsidian`. A custom
+`obsidian.command` selects another executable. Preview uses `open`, followed
+by `eval` to select Reading view, and needs no community plugin. CLI errors
+are reported; commands time out after ten seconds.
+
+==============================================================================
+TEMPLATES                                                         *mdw-templates*
 
 Templates come from the folder in `.obsidian/templates.json`. Entries in
 `create.templates` add or replace a template by name. One available template
@@ -259,7 +288,8 @@ Optional tools. Setup still succeeds when one is missing:
 		LSP when `lsp.enabled` is true.
 	Obsidian CLI
 		Template list and creation when `create.backend` is
-		"obsidian", and `:mdw obsidian`. Daily-note search and
+		"obsidian", plus `:mdw`, `:mdw preview`, and `:mdw obsidian`
+		inside a vault. Daily-note search and
 		local templates read `.obsidian` without the CLI.
 	Trouble
 		`:mdw trouble` only.

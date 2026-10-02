@@ -1101,12 +1101,12 @@ add("create, daily notes, and obsidian cli", function()
   local handle = assert(io.open(script, "wb"))
   handle:write(string.format([=[
 #!/bin/sh
+printf 'cwd=%%s\n' "$PWD" >> %q
 printf '%%s\n' "$@" >> %q
-vault=""
+vault="$PWD"
 path=""
 for arg in "$@"; do
   case "$arg" in
-    vault=*) vault=${arg#vault=} ;;
     path=*) path=${arg#path=} ;;
   esac
 done
@@ -1114,7 +1114,7 @@ if [ -n "$vault" ] && [ -n "$path" ]; then
   mkdir -p "$(dirname "$vault/$path")"
   printf 'from cli\n' > "$vault/$path"
 fi
-]=], log))
+]=], log, log))
   handle:close()
   vim.uv.fs_chmod(script, 493)
   mdw.setup({
@@ -1131,13 +1131,94 @@ fi
   })
   truthy(cli ~= nil, "obsidian backend creates the file")
   local recorded = assert(io.open(log, "rb")):read("*a")
-  truthy(recorded:find("vault=" .. dir, 1, true) ~= nil, "vault is an argument")
+  truthy(recorded:find("cwd=" .. dir, 1, true) ~= nil, "CLI runs from the vault directory")
   truthy(recorded:find("path=from cli.md", 1, true) ~= nil, "path is an argument")
   truthy(recorded:find("template=Travel", 1, true) ~= nil, "template name is an argument")
   truthy(recorded:find("create\n", 1, true) ~= nil, "create is a separate argument")
   local cli_body = assert(io.open(cli, "rb")):read("*a")
   eq(cli_body, "from cli\n", "local template body is not written for the cli backend")
   vim.fn.confirm = saved
+end)
+
+add("Obsidian preview detects the current buffer vault", function()
+  local dir = tmp()
+  git_init(dir)
+  local vault = dir .. "/vault with spaces"
+  write(vault, ".obsidian/app.json", "{}\n")
+  local relpath = 'folder/日本語 "quoted" & note.md'
+  local path = write(vault, relpath, "# Preview\n")
+  local script = write(dir, "obsidian", string.format([=[#!/bin/sh
+printf 'cwd=%%s\n' "$PWD" >> %q
+printf '%%s\n' "$@" >> %q
+if [ -f "$PWD/.fail-open" ] && [ "$1" = "open" ]; then
+  printf 'cannot open note\n' >&2
+  exit 1
+fi
+]=], dir .. "/cli.log", dir .. "/cli.log"))
+  vim.uv.fs_chmod(script, 493)
+  local mdw = require("mdw")
+  local obsidian = require("mdw.obsidian")
+  mdw.setup({ obsidian = { command = script }, format = { enabled = false } })
+  vim.cmd.edit(vim.fn.fnameescape(path))
+  eq(require("mdw.workspace").resolve(0), dir, "ordinary workspace remains the git root")
+  eq(obsidian.vault_root(0), vault, "preview finds a nested vault above the note")
+  eq(require("mdw.health").collect().obsidian, true, "health recognizes automatic vault integration")
+  local saved_notify = vim.notify
+  local notices = {}
+  vim.notify = function(message)
+    notices[#notices + 1] = message
+  end
+  local function recorded()
+    return table.concat(vim.fn.readfile(dir .. "/cli.log"), "\n")
+  end
+  vim.cmd("Mdw")
+  local log = recorded()
+  truthy(log:find("cwd=" .. vault, 1, true), "CLI uses the vault rather than the git root")
+  truthy(log:find("open\npath=" .. relpath, 1, true), "open receives the exact relative note path")
+  truthy(log:find("eval\ncode=", 1, true), "bare command requests Reading view")
+  truthy(log:find("getFileByPath(" .. vim.json.encode(relpath) .. ")", 1, true), "preview safely encodes special filenames")
+  truthy(log:find("mode: 'preview'", 1, true), "Reading view is selected explicitly")
+  eq(#notices, 0, "successful preview does not report an error")
+  os.remove(dir .. "/cli.log")
+  vim.cmd("Mdw preview")
+  truthy(recorded():find("eval\ncode=", 1, true), "explicit preview uses Reading view")
+  truthy(vim.fn.getcompletion("Mdw pre", "cmdline")[1] == "preview", "preview completes")
+  mdw.setup({ workspace = { root = dir }, obsidian = { command = script }, format = { enabled = false } })
+  os.remove(dir .. "/cli.log")
+  vim.cmd("Mdw preview")
+  truthy(recorded():find("cwd=" .. vault, 1, true), "a pinned workspace does not change the preview vault")
+  os.remove(dir .. "/cli.log")
+  vim.cmd("Mdw obsidian")
+  truthy(not recorded():find("eval", 1, true), "obsidian command preserves the app's view mode")
+  os.remove(dir .. "/cli.log")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "# Unsaved" })
+  vim.cmd("Mdw preview")
+  truthy(notices[#notices]:find(":write", 1, true), "modified note asks to save")
+  eq(vim.uv.fs_stat(dir .. "/cli.log"), nil, "modified note does not launch the CLI")
+  same(vim.fn.readfile(path), { "# Preview" }, "preview leaves unsaved changes on disk untouched")
+  vim.bo.modified = false
+  write(vault, ".fail-open", "")
+  vim.cmd("Mdw preview")
+  truthy(notices[#notices]:find("cannot open note", 1, true), "CLI failures reach the user")
+  truthy(not recorded():find("eval", 1, true), "failed open does not change the view")
+  os.remove(dir .. "/cli.log")
+  os.remove(vault .. "/.fail-open")
+  mdw.setup({ obsidian = { command = dir .. "/missing-cli" } })
+  vim.cmd("Mdw preview")
+  truthy(notices[#notices]:find("Command line interface", 1, true), "missing CLI explains setup")
+  local outside = write(dir, "ordinary.md", "# Ordinary\n")
+  vim.cmd.edit(vim.fn.fnameescape(outside))
+  vim.cmd("Mdw")
+  truthy(notices[#notices]:find("Usage:", 1, true), "bare command outside a vault shows usage")
+  vim.cmd("Mdw preview")
+  truthy(notices[#notices]:find("not inside an Obsidian vault", 1, true), "explicit preview requires a vault")
+  vim.cmd.enew()
+  vim.cmd("Mdw preview")
+  truthy(notices[#notices]:find("open a note first", 1, true), "unnamed buffers cannot preview")
+  vim.cmd.edit(vim.fn.fnameescape(vault .. "/new.md"))
+  vim.cmd("Mdw preview")
+  truthy(notices[#notices]:find(":write", 1, true), "a new note must exist on disk")
+  vim.notify = saved_notify
 end)
 
 add("daily search and obsidian templates", function()
@@ -1260,11 +1341,10 @@ for arg in "$@"; do
     exit 0
   fi
 done
-vault=""
+vault="$PWD"
 path=""
 for arg in "$@"; do
   case "$arg" in
-    vault=*) vault=${arg#vault=} ;;
     path=*) path=${arg#path=} ;;
   esac
 done

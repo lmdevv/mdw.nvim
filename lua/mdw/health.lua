@@ -36,6 +36,8 @@ function M.collect()
   report.enrich = config.get().search.enrich_files
   report.picker = pick.backend()
   report.obsidian = config.get().obsidian.enabled
+    or config.get().create.backend == "obsidian"
+    or require("mdw.obsidian").vault_root(0) ~= nil
   report.obsidian_command = require("mdw.obsidian").available()
   report.rumdl = require("mdw.format").available()
   report.format_on_save = config.get().format.format_on_save
@@ -93,7 +95,7 @@ function M.check()
   if report.obsidian and report.obsidian_command then
     vim.health.ok("obsidian CLI is available")
   elseif report.obsidian then
-    vim.health.warn("obsidian integration is enabled, but the CLI was not found")
+    vim.health.warn("obsidian CLI was not found; enable Settings > General > Command line interface in Obsidian")
   else
     vim.health.info("obsidian CLI integration is off")
   end

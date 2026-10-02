@@ -26,6 +26,7 @@ local COMMANDS = {
   "aliases",
   "tags",
   "obsidian",
+  "preview",
   "format",
   "lint",
   "image",
@@ -34,6 +35,7 @@ local COMMANDS = {
 
 local USAGE = table.concat({
   "Usage:",
+  "  :mdw (preview the current note in an Obsidian vault)",
   "  :mdw health",
   "  :mdw search [query]",
   "  :mdw index",
@@ -49,6 +51,7 @@ local USAGE = table.concat({
   "  :mdw aliases {names}",
   "  :mdw tags {names}",
   "  :mdw obsidian",
+  "  :mdw preview",
   "  :mdw format",
   "  :mdw lint",
   "  :mdw image",
@@ -192,8 +195,12 @@ end
 local function dispatch(args, line1, line2)
   local sub, rest = args:match("^(%S+)%s*(.*)$")
   if sub == nil then
-    vim.notify(USAGE, vim.log.levels.INFO)
-    return
+    if workspace.is_note_name(vim.api.nvim_buf_get_name(0)) and require("mdw.obsidian").vault_root(0) then
+      sub = "preview"
+    else
+      vim.notify(USAGE, vim.log.levels.INFO)
+      return
+    end
   end
   rest = vim.trim(rest or "")
   if sub == "health" then
@@ -268,13 +275,8 @@ local function dispatch(args, line1, line2)
     edit_meta("aliases", list_aliases(rest))
   elseif sub == "tags" then
     edit_meta("tags", list_words(rest))
-  elseif sub == "obsidian" then
-    local root, relpath = current_note()
-    if not root or not relpath then
-      vim.notify("mdw: open a note first", vim.log.levels.ERROR)
-      return
-    end
-    local ok, err = require("mdw.obsidian").open(root, relpath)
+  elseif sub == "obsidian" or sub == "preview" then
+    local ok, err = require("mdw.obsidian").open_current(0, sub == "preview")
     if not ok then
       vim.notify("mdw: " .. (err or "could not open Obsidian"), vim.log.levels.ERROR)
     end
