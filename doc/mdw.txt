@@ -50,7 +50,7 @@ COMMANDS                                                            *mdw-command
 :mdw aliases {names}         Replace aliases.
 :mdw tags {names}            Replace tags.
 :mdw obsidian                Open the current note in Obsidian.
-:mdw preview                 Open the current note in Obsidian Reading view.
+:mdw preview [backend]       Open a saved note in Obsidian or the browser.
 :mdw format                  Format the buffer with rumdl.
 :mdw lint                    Publish rumdl diagnostics.
 :mdw image                   Paste a clipboard image.
@@ -261,7 +261,26 @@ level. The default is 2. A tab-indented item nests by one tab.
 `lsp.enabled` attaches `markdown-oxide`. `lsp.rename` gives rename to that
 server, and `:mdw rename` then leaves the files alone.
 
-Browser preview is not in this release.
+BROWSER PREVIEW                                                *mdw-browser*
+
+`:mdw preview browser` opens the latest saved note at https://md.luismario.me.
+It reads disk bytes, never saves the buffer, and ignores unsaved edits. The
+plugin bundles pure Lua raw DEFLATE compression; no external compressor,
+Node.js, or local server is needed. The browser receives a versioned JSON
+snapshot through an unpadded base64url URL fragment. Anyone with the full
+link can read the note. Later saves do not update an existing snapshot.
+
+The separate mdweb reader provides themes, an outline, LaTeX math, Mermaid,
+code highlighting, editing, Markdown download, and document/passage sharing.
+QR sharing is available when the link fits. Media is not included. Notes
+larger than 1 MiB and links longer than 60000 characters are rejected.
+
+`preview.backend` is "obsidian" by default. Set it to "browser" to make
+`:mdw preview` and bare `:mdw` on a note use the browser. Explicit
+`:mdw preview obsidian` always selects Reading view in Obsidian.
+`preview.url` defaults to "https://md.luismario.me"; use an HTTP(S) base URL
+without a query or fragment for another deployment, for example
+"http://localhost:5184". The website is https://github.com/lmdevv/mdweb.
 
 ==============================================================================
 COMPATIBILITY                                                *mdw-compatibility*

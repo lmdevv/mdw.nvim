@@ -1221,6 +1221,59 @@ fi
   vim.notify = saved_notify
 end)
 
+add("browser preview uses saved bytes and handles routing and failures", function()
+  local dir = tmp()
+  local path = write(dir, "saved 日本語.md", "# Saved\r\n\r\ncafé 🙂\r\n")
+  local mdw = require("mdw")
+  local browser = require("mdw.browser")
+  mdw.setup({ format = { enabled = false } })
+  vim.cmd.edit(vim.fn.fnameescape(path))
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "# Unsaved" })
+  local saved_open, saved_notify = vim.ui.open, vim.notify
+  local opened, notices = {}, {}
+  vim.ui.open = function(url)
+    opened[#opened + 1] = url
+    return {}
+  end
+  vim.notify = function(message) notices[#notices + 1] = message end
+  vim.cmd("Mdw preview browser")
+  eq(#opened, 1, "explicit browser preview opens with unsaved buffer changes")
+  truthy(opened[1]:find("https://md.luismario.me/#v=1&doc=", 1, true) == 1, "production viewer is the default")
+  local first = opened[1]
+  eq(browser.url(), first, "the same saved note produces the same link")
+  truthy(vim.bo.modified, "browser preview leaves the buffer modified")
+  eq(assert(io.open(path, "rb")):read("*a"), "# Saved\r\n\r\ncafé 🙂\r\n", "browser preview does not save the buffer")
+  same(vim.fn.getcompletion("Mdw preview b", "cmdline"), { "browser" }, "browser backend completes")
+  same(vim.fn.getcompletion("Mdw preview o", "cmdline"), { "obsidian" }, "Obsidian backend completes")
+  write(dir, "saved 日本語.md", "# New disk contents\n")
+  truthy(browser.url() ~= first, "preview reads fresh disk contents rather than the stale buffer")
+  mdw.setup({ preview = { backend = "browser", url = "http://localhost:5184/" }, format = { enabled = false } })
+  vim.cmd("Mdw preview")
+  truthy(opened[#opened]:find("http://localhost:5184/#v=1&doc=", 1, true) == 1, "configured backend and URL are used")
+  vim.cmd("Mdw preview invalid")
+  truthy(notices[#notices]:find("browser or obsidian", 1, true), "unknown preview backend explains usage")
+  vim.ui.open = function() return nil, "browser launch failed" end
+  vim.cmd("Mdw preview browser")
+  truthy(notices[#notices]:find("browser launch failed", 1, true), "browser launch errors reach the user")
+  vim.bo.modified = false
+  vim.cmd.edit(vim.fn.fnameescape(dir .. "/missing.md"))
+  local url, err = browser.url()
+  eq(url, nil, "missing file cannot preview")
+  truthy(err:find(":write", 1, true), "missing file asks to save")
+  vim.cmd.enew()
+  eq(browser.url(), nil, "unnamed buffer cannot preview")
+  local huge = write(dir, "large.md", string.rep("x", 1024 * 1024 + 1))
+  vim.cmd.edit(vim.fn.fnameescape(huge))
+  url, err = browser.url()
+  eq(url, nil, "oversized input is rejected before compression")
+  truthy(err:find("1 MiB", 1, true), "oversized note explains the limit")
+  eq(pcall(mdw.setup, { preview = { backend = "wrong" } }), false, "invalid default backend is rejected")
+  eq(pcall(mdw.setup, { preview = { url = "javascript:alert(1)" } }), false, "preview needs an HTTP URL")
+  eq(pcall(mdw.setup, { preview = { url = "https://example.com/#old" } }), false, "preview base URL cannot include a fragment")
+  vim.ui.open, vim.notify = saved_open, saved_notify
+  mdw.setup({})
+end)
+
 add("daily search and obsidian templates", function()
   local dir = tmp()
   local mdw = require("mdw")

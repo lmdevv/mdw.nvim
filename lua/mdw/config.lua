@@ -31,6 +31,10 @@ local defaults = {
     command = "obsidian",
     import_daily = true,
   },
+  preview = {
+    backend = "obsidian",
+    url = "https://md.luismario.me",
+  },
   format = {
     enabled = true,
     command = "rumdl",
@@ -115,6 +119,15 @@ function M.apply(opts)
   local create = opts.create or {}
   local daily = opts.daily or {}
   local obsidian = opts.obsidian or {}
+  local preview = opts.preview or {}
+  if preview.backend ~= nil and preview.backend ~= "obsidian" and preview.backend ~= "browser" then
+    error("mdw: preview.backend must be obsidian or browser")
+  end
+  if preview.url ~= nil
+    and (type(preview.url) ~= "string" or not preview.url:match("^https?://[^/%s?#]+[^%s?#]*$"))
+  then
+    error("mdw: preview.url must be an HTTP(S) URL without a query or fragment")
+  end
   if navigation.gd ~= nil and type(navigation.gd) ~= "boolean" then
     error("mdw: navigation.gd must be a boolean")
   end
@@ -235,6 +248,10 @@ function M.apply(opts)
       enabled = obsidian.enabled == true,
       command = obsidian.command or "obsidian",
       import_daily = obsidian.import_daily ~= false,
+    },
+    preview = {
+      backend = preview.backend or "obsidian",
+      url = preview.url or "https://md.luismario.me",
     },
     format = {
       enabled = format.enabled ~= false,

@@ -35,6 +35,7 @@ function M.collect()
   end
   report.enrich = config.get().search.enrich_files
   report.picker = pick.backend()
+  report.browser_url = config.get().preview.url
   report.obsidian = config.get().obsidian.enabled
     or config.get().create.backend == "obsidian"
     or require("mdw.obsidian").vault_root(0) ~= nil
@@ -99,6 +100,7 @@ function M.check()
   else
     vim.health.info("obsidian CLI integration is off")
   end
+  vim.health.info("browser preview: " .. report.browser_url .. " (saved note snapshot; no external compressor required)")
   if report.rumdl then
     vim.health.ok("rumdl is available")
   else

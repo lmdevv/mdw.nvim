@@ -15,7 +15,7 @@ Neovim 0.11 or newer. Setup still succeeds when an optional tool is missing.
 | wl-paste or xclip | `:mdw image` on Linux. Other systems set `edit.clipboard`, for example `{ "pngpaste" }` |
 | render-markdown.nvim | In-buffer rendering when `render.enabled` is true |
 | markdown-oxide | LSP when `lsp.enabled` is true |
-| Obsidian CLI | Preview vault notes with `:mdw` or `:mdw preview`, open with `:mdw obsidian`, and create notes when `create.backend` is `"obsidian"` |
+| Obsidian CLI | Preview vault notes with `:mdw` or `:mdw preview obsidian`, open with `:mdw obsidian`, and create notes when `create.backend` is `"obsidian"` |
 | Trouble | `:mdw trouble` |
 
 `:checkhealth mdw` reports which of these are available.
@@ -108,9 +108,15 @@ This starts a separate Neovim in a writable copy of a walkthrough vault. It does
 
 When `.obsidian/daily-notes.json` or `.obsidian/templates.json` is present, unset daily and template options are filled from those files. Note creation uses the CLI when `create.backend` is `"obsidian"`, or one command passes `backend=obsidian`. One template is used on its own. Several templates open a picker, including a blank note. `template=Trip` skips the picker. `{{title}}`, `{{date}}`, `{{time}}`, and `{{date:YYYY-MM-DD}}` are filled in.
 
-**Obsidian preview.** `:mdw` and `:mdw preview` open the current note in the desktop app and select Reading view. `:mdw obsidian` opens it using the app's existing view mode. The nearest parent containing a `.obsidian` directory identifies the vault, including vaults nested inside a Git repository. Save the note with `:write` first; these commands do not save buffer changes. Obsidian reflects subsequent saves while the note is open.
+**Obsidian preview.** `:mdw`, `:mdw preview`, and `:mdw preview obsidian` open the current note in the desktop app and select Reading view. `:mdw obsidian` opens it using the app's existing view mode. The nearest parent containing a `.obsidian` directory identifies the vault, including vaults nested inside a Git repository. Save the note with `:write` first; these commands do not save buffer changes. Obsidian reflects subsequent saves while the note is open.
 
 Enable **Settings → General → Command line interface** in Obsidian 1.12.7 or newer, and open the folder as a vault in Obsidian at least once. Keep the desktop app running; some installations cannot launch it through the CLI. See the [Obsidian CLI setup guide](https://help.obsidian.md/cli). mdw prefers `obsidian-cli` when that executable is available, otherwise `obsidian`. Set `obsidian.command` to a custom executable path if needed. Preview uses the CLI's `open` and `eval` commands; it requires no community plugin.
+
+**Browser preview.** `:mdw preview browser` opens the latest saved note at [md.luismario.me](https://md.luismario.me). Unsaved buffer changes are ignored, and the command never writes the file. The plugin reads bytes from disk, compresses a JSON snapshot with a bundled pure Lua DEFLATE implementation, and opens a base64url link. No Node.js, gzip executable, local server, or live connection is required.
+
+The viewer has reading themes, an outline, math, Mermaid, code highlighting, editing, downloads, and document or passage sharing. QR sharing works when the link fits a QR code. The document is carried in the URL fragment, which the browser does not send in its HTTP request; anyone with the full link can read it. Media is outside this version. Links are snapshots, so later saves do not update them. Notes larger than 1 MiB or links longer than 60,000 characters are rejected.
+
+Set `preview.backend = "browser"` to make `:mdw preview` and bare `:mdw` on a note use the browser. `preview.url` changes the viewer URL, for example `"http://localhost:5184"` for a local mdweb build. The default backend remains `"obsidian"`. The web app lives separately in [lmdevv/mdweb](https://github.com/lmdevv/mdweb).
 
 **Editing.** `:mdw list continue`, `nest`, `unnest`, and `check` edit the current list item. Bind them with `lists.maps` if you want keys. `:mdw format` and `:mdw lint` use rumdl. `:mdw image` saves a clipboard PNG under `assets/` and inserts a Markdown image.
 
@@ -155,6 +161,10 @@ require("mdw").setup({
       check = nil,
     },
   },
+  preview = {
+    backend = "obsidian", -- or "browser"
+    url = "https://md.luismario.me",
+  },
   format = {
     lint = true,
     format_on_save = false,
@@ -175,4 +185,4 @@ make test
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). The bundled [LibDeflate](lua/mdw/vendor/README.md) retains its zlib license.

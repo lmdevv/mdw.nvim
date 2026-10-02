@@ -51,7 +51,7 @@ local USAGE = table.concat({
   "  :mdw aliases {names}",
   "  :mdw tags {names}",
   "  :mdw obsidian",
-  "  :mdw preview",
+  "  :mdw preview [obsidian|browser]",
   "  :mdw format",
   "  :mdw lint",
   "  :mdw image",
@@ -113,6 +113,15 @@ local LIST_ACTIONS = { "continue", "nest", "unnest", "check" }
 
 local function complete(arglead, cmdline)
   local before = cmdline:sub(1, #cmdline - #arglead)
+  if before:match("^%s*[Mm]dw%s+preview%s+$") then
+    local matches = {}
+    for _, name in ipairs({ "obsidian", "browser" }) do
+      if vim.startswith(name, arglead) then
+        matches[#matches + 1] = name
+      end
+    end
+    return matches
+  end
   if before:match("^%s*[Mm]dw%s+list%s+$") then
     local matches = {}
     for _, name in ipairs(LIST_ACTIONS) do
@@ -195,7 +204,9 @@ end
 local function dispatch(args, line1, line2)
   local sub, rest = args:match("^(%S+)%s*(.*)$")
   if sub == nil then
-    if workspace.is_note_name(vim.api.nvim_buf_get_name(0)) and require("mdw.obsidian").vault_root(0) then
+    if workspace.is_note_name(vim.api.nvim_buf_get_name(0))
+      and (config.get().preview.backend == "browser" or require("mdw.obsidian").vault_root(0))
+    then
       sub = "preview"
     else
       vim.notify(USAGE, vim.log.levels.INFO)
@@ -275,8 +286,23 @@ local function dispatch(args, line1, line2)
     edit_meta("aliases", list_aliases(rest))
   elseif sub == "tags" then
     edit_meta("tags", list_words(rest))
-  elseif sub == "obsidian" or sub == "preview" then
-    local ok, err = require("mdw.obsidian").open_current(0, sub == "preview")
+  elseif sub == "preview" then
+    local backend = rest ~= "" and rest or config.get().preview.backend
+    if backend ~= "browser" and backend ~= "obsidian" then
+      vim.notify("mdw: preview needs browser or obsidian", vim.log.levels.ERROR)
+      return
+    end
+    local ok, err
+    if backend == "browser" then
+      ok, err = require("mdw.browser").open_current(0)
+    else
+      ok, err = require("mdw.obsidian").open_current(0, true)
+    end
+    if not ok then
+      vim.notify("mdw: " .. (err or "could not open preview"), vim.log.levels.ERROR)
+    end
+  elseif sub == "obsidian" then
+    local ok, err = require("mdw.obsidian").open_current(0, false)
     if not ok then
       vim.notify("mdw: " .. (err or "could not open Obsidian"), vim.log.levels.ERROR)
     end
