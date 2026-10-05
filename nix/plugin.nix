@@ -5,7 +5,7 @@
 }:
 pkgs.vimUtils.buildVimPlugin {
   pname = "mdw-nvim";
-  version = "0.0.3";
+  version = "0.1.0";
   src = lib.cleanSourceWith {
     src = self;
     filter =
